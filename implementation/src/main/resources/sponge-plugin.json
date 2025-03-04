@@ -1,0 +1,8 @@
+{
+  "id": "alwaysonline",
+  "name": "Always Online",
+  "version": "1.0",
+  "description": "Keep your server running while mojang is offline, Supports all server versions!",
+  "authors": ["Dablakbandit"],
+  "main": "me.dablakbandit.ao.sponge.SpongeLoader"
+}
