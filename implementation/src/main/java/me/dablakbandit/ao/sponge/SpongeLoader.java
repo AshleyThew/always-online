@@ -2,22 +2,30 @@ package me.dablakbandit.ao.sponge;
 
 import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.hybrid.AlwaysOnline;
+import org.spongepowered.api.Server;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.Command;
+import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.game.state.GameInitializationEvent;
-import org.spongepowered.api.event.game.state.GameStoppingEvent;
-import org.spongepowered.api.plugin.Plugin;
-import org.spongepowered.api.plugin.PluginContainer;
+import org.spongepowered.api.event.lifecycle.RegisterCommandEvent;
+import org.spongepowered.api.event.lifecycle.StartedEngineEvent;
+import org.spongepowered.api.event.lifecycle.StoppingEngineEvent;
+import org.spongepowered.api.scheduler.ScheduledTask;
 import org.spongepowered.api.scheduler.Task;
-import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.plugin.PluginContainer;
+import org.spongepowered.plugin.builtin.jvm.Plugin;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import javax.inject.Inject;
 import java.nio.file.Path;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-@Plugin(id = "alwaysonline", name = "Always Online", version = "1.0", description = "Keep your server running while mojang is offline, Supports all server versions!", authors = "Dablakbandit")
+import static org.spongepowered.api.Sponge.game;
+
+@Plugin("alwaysonline")
 public class SpongeLoader implements NativeExecutor {
 
     private final AlwaysOnline alwaysOnline = new AlwaysOnline(this);
@@ -31,44 +39,61 @@ public class SpongeLoader implements NativeExecutor {
     }
 
     @Listener
-    public void onServerStart(GameInitializationEvent event) {
+    public void onServerStart(StartedEngineEvent<Server> event) {
         this.alwaysOnline.reload();
-        Sponge.getEventManager().registerListeners(this, new SpongeListener(this));
+        event.game().eventManager().registerListeners(pluginContainer, new SpongeListener(this));
     }
 
     @Listener
-    public void onServerStop(GameStoppingEvent event) {
+    public void onServerStop(StoppingEngineEvent<Server> event) {
         this.alwaysOnline.disable();
     }
 
-    @Override
-    public int runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
-        Task task = Task.builder()
-                .execute(runnable)
-                .delay(delay, timeUnit)
-                .interval(period, timeUnit)
-                .submit(this);
-        return task.getUniqueId().hashCode();
+    @Listener
+    public void onRegisterCommands(final RegisterCommandEvent<Command.Parameterized> event){
+        event.register(this.pluginContainer, new SpongeCommand(this).build(), "alwaysonline", "ao");
     }
 
     @Override
-    public void cancelTask(int taskID) {
-        Sponge.getScheduler().getTaskById(taskID).ifPresent(Task::cancel);
+    public Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
+        Task.Builder builder = Task.builder()
+                .execute(runnable)
+                .delay(delay, timeUnit)
+                .interval(period, timeUnit);
+        ScheduledTask task = Sponge.server().scheduler().submit(builder.build());
+        return task.uniqueId();
+    }
+
+    @Override
+    public void cancelTask(Object taskID) {
+        if (taskID instanceof UUID) {
+            UUID uuid = (UUID) taskID;
+            game().server().scheduler().findTask(uuid).ifPresent(ScheduledTask::cancel);
+        }
     }
 
     @Override
     public void cancelAllOurTasks() {
-        Sponge.getScheduler().getTasksByPlugin(this).forEach(Task::cancel);
+        game().server().scheduler().tasks(pluginContainer).forEach(ScheduledTask::cancel);
     }
 
     @Override
     public void unregisterAllListeners() {
-        Sponge.getEventManager().unregisterListeners(this);
+        game().eventManager().unregisterListeners(pluginContainer);
     }
 
     @Override
     public void log(Level level, String message) {
-        pluginContainer.getLogger().log(level, message);
+        // Using Sponge logging system, may need adjustment based on your specific needs
+        if (level == Level.SEVERE) {
+            pluginContainer.logger().error(message);
+        } else if (level == Level.WARNING) {
+            pluginContainer.logger().warn(message);
+        } else if (level == Level.INFO) {
+            pluginContainer.logger().info(message);
+        } else {
+            pluginContainer.logger().debug(message);
+        }
     }
 
     @Override
@@ -78,17 +103,17 @@ public class SpongeLoader implements NativeExecutor {
 
     @Override
     public void disablePlugin() {
-        Sponge.getServer().shutdown();
+        Sponge.server().shutdown();
     }
 
     @Override
     public void registerListener() {
-        Sponge.getEventManager().registerListeners(this, new SpongeListener(this));
+        game().eventManager().registerListeners(pluginContainer, new SpongeListener(this));
     }
 
     @Override
     public void broadcastMessage(String message) {
-        Sponge.getServer().getBroadcastChannel().send(Text.of(TextColors.YELLOW, message));
+        Sponge.server().broadcastAudience().sendMessage(Component.text(message, NamedTextColor.YELLOW));
     }
 
     @Override
@@ -98,11 +123,15 @@ public class SpongeLoader implements NativeExecutor {
 
     @Override
     public String getVersion() {
-        return pluginContainer.getVersion().orElse("unknown");
+        return pluginContainer.metadata().version().toString();
     }
 
     @Override
     public void notifyOfflineMode(boolean offlineMode) {
         // No specific action needed for Sponge
+    }
+
+    public PluginContainer getPluginContainer() {
+        return pluginContainer;
     }
 }

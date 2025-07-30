@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+}
+
+allprojects {
+    group = 'me.dablakbandit'
+    version = '6.3.2'
+    
+    repositories {
+        mavenCentral()
+        mavenLocal()
+        maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+        maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
+        maven { url = 'https://ci.lucko.me/plugin/repository/everything/' }
+        maven { url = 'https://nexus.velocitypowered.com/repository/maven-public/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        maven { url = 'https://jitpack.io' }
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+    
+    compileJava {
+        options.encoding = 'UTF-8'
+    }
+    
+    ext {
+        bukkitVersion = '1.14-R0.1-SNAPSHOT'
+        aoVersion = version
+    }
+}

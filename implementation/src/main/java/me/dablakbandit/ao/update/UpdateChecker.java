@@ -19,7 +19,7 @@ public class UpdateChecker{
 
 	private String			latest;
 	private NativeExecutor nativeExecutor;
-	private int schedule = -1;
+	private Object schedule = -1;
 	private UpdateChecker(){
 		
 	}
@@ -48,7 +48,7 @@ public class UpdateChecker{
 		}
 	}
 
-	public int getSchedule() {
+	public Object getSchedule() {
 		return schedule;
 	}
 }

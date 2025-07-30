@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow'
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+dependencies {
+    implementation project(':common')
+    implementation project(':1_14_plus')
+    implementation project(':1_16_4_plus')
+    implementation project(':1_20_2_plus')
+    
+    compileOnly 'org.spigotmc:spigot:1.14-R0.1-SNAPSHOT'
+    compileOnly 'net.md-5:bungeecord-api:1.20-R0.3-SNAPSHOT'
+    compileOnly 'net.md-5:bungeecord-proxy:1.20-R0.3-SNAPSHOT'
+    compileOnly 'com.velocitypowered:velocity-api:3.0.1'
+    compileOnly 'org.spongepowered:spongeapi:8.0.0'
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    with copySpec {
+        from 'src/main/resources'
+        filter ReplaceTokens, tokens: [
+                'version': version
+        ]
+    }
+}
+
+// Process Java sources to replace version tokens
+task processJava(type: Copy) {
+    from 'src/main/java'
+    into 'build/generated-src'
+    filter ReplaceTokens, tokens: [
+            'version': version
+    ]
+}
+
+// Make compileJava depend on processJava and use the processed sources
+compileJava {
+    dependsOn processJava
+    source = 'build/generated-src'
+}
+
+shadowJar {
+    archiveClassifier = ''
+    destinationDirectory = file("$projectDir/target")
+    archiveFileName = "${project.name}-${project.version}-shaded.jar"
+}
+
+task copyToOutput(type: Copy, dependsOn: shadowJar) {
+    from shadowJar.archiveFile
+    into "$rootDir/output"
+    rename { "${rootProject.name}-latest.jar" }
+}
+
+build.finalizedBy copyToOutput

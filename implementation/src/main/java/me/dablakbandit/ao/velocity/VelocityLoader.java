@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
-@Plugin(id = "alwaysonline", name = "Always Online", version = "6.3.1", url = "https://www.spigotmc.org/resources/alwaysonline.66591/", description = "Keep your server running while mojang is offline, Supports all server versions!", authors = "Dablakbandit")
+@Plugin(id = "alwaysonline", name = "Always Online", version = "@version@", url = "https://www.spigotmc.org/resources/alwaysonline.66591/", description = "Keep your server running while mojang is offline, Supports all server versions!", authors = "Dablakbandit")
 public class VelocityLoader implements NativeExecutor {
 
     public final AlwaysOnline alwaysOnline = new AlwaysOnline(this);
@@ -37,7 +37,8 @@ public class VelocityLoader implements NativeExecutor {
     private final Metrics.Factory metricsFactory;
 
     @Inject
-    public VelocityLoader(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory, Metrics.Factory metricsFactory) {
+    public VelocityLoader(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory,
+            Metrics.Factory metricsFactory) {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
@@ -58,7 +59,7 @@ public class VelocityLoader implements NativeExecutor {
         Metrics metrics = metricsFactory.make(this, 15202);
         Database database = alwaysOnline.getDatabase();
         String databaseType = "FlatFile";
-        if(database instanceof MySQLDatabase){
+        if (database instanceof MySQLDatabase) {
             databaseType = "MySQL";
         }
         String finalDatabaseType = databaseType;
@@ -78,7 +79,7 @@ public class VelocityLoader implements NativeExecutor {
         }
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (Exception | Error ignored){
+        } catch (Exception | Error ignored) {
         }
     }
 
@@ -86,7 +87,7 @@ public class VelocityLoader implements NativeExecutor {
     private final Map<Integer, ScheduledTask> scheduledTasks = new HashMap<>();
 
     @Override
-    public int runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
+    public Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
         int taskId = taskCounter.getAndIncrement();
         ScheduledTask task = server.getScheduler().buildTask(this, () -> {
             scheduledTasks.remove(taskId);
@@ -97,7 +98,7 @@ public class VelocityLoader implements NativeExecutor {
     }
 
     @Override
-    public void cancelTask(int taskID) {
+    public void cancelTask(Object taskID) {
         ScheduledTask task = scheduledTasks.remove(taskID);
         if (task != null) {
             task.cancel();
@@ -119,9 +120,9 @@ public class VelocityLoader implements NativeExecutor {
 
     @Override
     public void log(Level level, String message) {
-        if(level == Level.WARNING){
+        if (level == Level.WARNING) {
             logger.warn(message);
-        }else{
+        } else {
             logger.info(message);
         }
     }
@@ -167,7 +168,7 @@ public class VelocityLoader implements NativeExecutor {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             return;
-        } catch (Exception | Error ignored){
+        } catch (Exception | Error ignored) {
         }
 
         String url = "https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar";
@@ -184,7 +185,8 @@ public class VelocityLoader implements NativeExecutor {
             int repCode = httpURLConnection.getResponseCode();
 
             if (repCode == 200) {
-                try (InputStream inputStream = httpURLConnection.getInputStream(); FileOutputStream fileOutputStream = new FileOutputStream(libFile)) {
+                try (InputStream inputStream = httpURLConnection.getInputStream();
+                        FileOutputStream fileOutputStream = new FileOutputStream(libFile)) {
                     byte[] b = new byte[1024];
                     int n;
                     while ((n = inputStream.read(b)) != -1) {
@@ -195,20 +197,20 @@ public class VelocityLoader implements NativeExecutor {
                 if (!sha1(libFile).equals("9e64d997873abc4318620264703d3fdb6b02dd5a")) {
                     libFile.delete();
                     getLogger().error("Failed to download mysql driver");
-                }else{
+                } else {
                     logger.info(libFile.getName());
                     server.getPluginManager().addToClasspath(this, libFile.toPath());
                     Class.forName("com.mysql.cj.jdbc.Driver");
                 }
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private String sha1(File file) throws Exception {
         try (FileInputStream fis = new FileInputStream(file);
-             ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();) {
+                ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();) {
             byte[] buff = new byte[1024];
             int n;
             while ((n = fis.read(buff)) > 0) {

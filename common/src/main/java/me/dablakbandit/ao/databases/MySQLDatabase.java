@@ -25,7 +25,7 @@ public class MySQLDatabase implements Database{
 	private Statement									statement			= null;
 	
 	private final NativeExecutor nativeExecutor;
-	private int											pingTaskID			= -1;
+	private Object											pingTaskID			= -1;
 	
 	public MySQLDatabase(NativeExecutor nativeExecutor, String host, int port, String database, String username, String password, String extra) throws SQLException{
 		this.host = host;
@@ -164,7 +164,7 @@ public class MySQLDatabase implements Database{
 	
 	@Override
 	public void close(){
-		if(this.pingTaskID != -1){
+		if(this.pingTaskID instanceof Integer && ((Integer)this.pingTaskID) != -1){
 			this.nativeExecutor.cancelTask(this.pingTaskID);
 			this.pingTaskID = -1;
 		}

@@ -1,0 +1,21 @@
+{
+  "loader": {
+    "name": "java_plain",
+    "version": "1.0"
+  },
+  "license": "GPL-3.0",
+  "plugins": [
+    {
+      "id": "alwaysonline",
+      "name": "AlwaysOnline",
+      "version": "@version@",
+      "entrypoint": "me.dablakbandit.ao.sponge.SpongeLoader",
+      "contributors": [
+        {
+          "name": "Dablakbandit",
+          "description": "Author"
+        }
+      ]
+    }
+  ]
+}

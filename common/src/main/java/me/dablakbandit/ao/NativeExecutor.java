@@ -6,33 +6,33 @@ import java.util.logging.Level;
 
 import me.dablakbandit.ao.hybrid.IAlwaysOnline;
 
-public interface NativeExecutor{
-	
-	int runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit);
-	
-	void cancelTask(int taskID);
-	
+public interface NativeExecutor {
+
+	Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit);
+
+	void cancelTask(Object taskID);
+
 	void cancelAllOurTasks();
-	
+
 	void unregisterAllListeners();
-	
+
 	void log(Level level, String message);
-	
+
 	Path dataFolder();
-	
+
 	void disablePlugin();
-	
+
 	void registerListener();
-	
+
 	void broadcastMessage(String message);
-	
+
 	IAlwaysOnline getAOInstance();
 
 	String getVersion();
 
 	void notifyOfflineMode(boolean offlineMode);
 
-	default void initMySQL(){
+	default void initMySQL() {
 
 	}
 }

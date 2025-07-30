@@ -39,17 +39,20 @@ public class BungeeLoader extends Plugin implements NativeExecutor {
 	}
 	
 	@Override
-	public int runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit){
+	public Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit){
 		return this.getProxy().getScheduler().schedule(this, runnable, delay, period, timeUnit).getId();
 	}
-	
-	@Override
-	public void cancelTask(int taskID){
-		if(taskID != -1) {
-			try {
-				this.getProxy().getScheduler().cancel(taskID);
-			}catch (Exception e){
 
+	@Override
+	public void cancelTask(Object taskID) {
+		if (taskID instanceof Integer) {
+			int id = (int) taskID;
+			if(id != -1) {
+				try {
+					this.getProxy().getScheduler().cancel(id);
+				} catch (Exception e) {
+
+				}
 			}
 		}
 	}
