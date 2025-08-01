@@ -3,18 +3,31 @@ plugins {
     id 'com.github.johnrengelman.shadow'
 }
 
+compileJava {
+    options.release = 21
+}
+
+compileTestJava {
+    options.release = 21
+}
+
 import org.apache.tools.ant.filters.ReplaceTokens
 
-dependencies {
-    implementation project(':common')
-    implementation project(':1_14_plus')
-    implementation project(':1_16_4_plus')
-    implementation project(':1_20_2_plus')
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
 
-    compileOnly 'org.spigotmc:spigot:1.14-R0.1-SNAPSHOT'
-    compileOnly 'net.md-5:bungeecord-api:1.20-R0.3-SNAPSHOT'
-    compileOnly 'net.md-5:bungeecord-proxy:1.20-R0.3-SNAPSHOT'
-    compileOnly 'com.velocitypowered:velocity-api:3.0.1'
+dependencies {
+    // Only include common module - NO NMS helpers needed for Sponge
+    implementation project(':common')
+
+    compileOnly 'org.spongepowered:spongeapi:16.0.0-SNAPSHOT'
+    compileOnly 'com.mojang:authlib:6.0.55'
+
+    // Add javax.inject for dependency injection
+    compileOnly 'javax.inject:javax.inject:1'
 }
 
 processResources {
@@ -40,18 +53,20 @@ task processJava(type: Copy) {
 compileJava {
     dependsOn processJava
     source = 'build/generated-src'
+    options.release = 21
 }
 
 shadowJar {
     archiveClassifier = ''
     destinationDirectory = file("$projectDir/target")
-    archiveFileName = "${project.name}-${project.version}-shaded.jar"
+    archiveFileName = "always-online-sponge-${project.version}.jar"
 }
 
 task copyToOutput(type: Copy, dependsOn: shadowJar) {
     from shadowJar.archiveFile
     into "$rootDir/output"
-    rename { "${rootProject.name}-latest.jar" }
+    rename { "always-online-sponge-latest.jar" }
 }
 
 build.finalizedBy copyToOutput
+

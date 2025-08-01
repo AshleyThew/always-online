@@ -1,5 +1,15 @@
 package me.dablakbandit.ao.hybrid;
 
+import com.google.common.io.ByteStreams;
+import com.google.gson.Gson;
+import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.databases.Database;
+import me.dablakbandit.ao.databases.FileDatabase;
+import me.dablakbandit.ao.databases.MongoDatabase;
+import me.dablakbandit.ao.databases.MySQLDatabase;
+import me.dablakbandit.ao.update.UpdateChecker;
+import me.dablakbandit.ao.utils.CheckMethods;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -11,17 +21,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
-
-import com.google.common.io.ByteStreams;
-import com.google.gson.Gson;
-
-import me.dablakbandit.ao.NativeExecutor;
-import me.dablakbandit.ao.databases.Database;
-import me.dablakbandit.ao.databases.FileDatabase;
-import me.dablakbandit.ao.databases.MySQLDatabase;
-import me.dablakbandit.ao.databases.MongoDatabase;
-import me.dablakbandit.ao.update.UpdateChecker;
-import me.dablakbandit.ao.utils.CheckMethods;
 
 public class AlwaysOnline implements IAlwaysOnline {
 
@@ -62,14 +61,12 @@ public class AlwaysOnline implements IAlwaysOnline {
 		Path configFile = dataFolder.resolve("config.properties");
 		Path oldConfigFile = dataFolder.resolve("config.yml");
 		try {
-			if (Files.notExists(dataFolder))
-				Files.createDirectory(dataFolder);
+			if (Files.notExists(dataFolder)) Files.createDirectory(dataFolder);
 			// Save default configuration
 			if (Files.notExists(configFile)) {
 				// New config file doesn't exist but the old one does.
 				if (Files.exists(oldConfigFile)) {
-					this.nativeExecutor.log(Level.WARNING,
-							"Detected an old configuration file. Please update the new file config.properties");
+					this.nativeExecutor.log(Level.WARNING, "Detected an old configuration file. Please update the new file config.properties");
 					Files.move(oldConfigFile, dataFolder.resolve("obsolete_config.yml"));
 				}
 				// First time the plugin is running. Copy the configuration file to the data
@@ -114,8 +111,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 		// No negative numbers.
 		int checkInterval = Math.max(0, Integer.valueOf(this.config.getProperty("check-interval", "30")));
 		if (checkInterval < 15) {
-			this.nativeExecutor.log(Level.WARNING, "Your check-interval is less than 15 seconds."
-					+ " This may cause issues and is recommended to be set to a higher number.");
+			this.nativeExecutor.log(Level.WARNING, "Your check-interval is less than 15 seconds." + " This may cause issues and is recommended to be set to a higher number.");
 		}
 
 		// Kill any existing threads or listeners in case of a re-load
@@ -125,31 +121,18 @@ public class AlwaysOnline implements IAlwaysOnline {
 			this.nativeExecutor.log(Level.INFO, "Loading MySQL database...");
 			this.nativeExecutor.initMySQL();
 			try {
-				this.database = new MySQLDatabase(this.nativeExecutor, this.config.getProperty("host", "127.0.0.1"),
-						Integer.parseInt(this.config.getProperty("port", "3306")),
-						this.config.getProperty("database-name", "minecraft"),
-						this.config.getProperty("database-username", "root"),
-						this.config.getProperty("database-password", "password"),
-						this.config.getProperty("database-extra", ""));
+				this.database = new MySQLDatabase(this.nativeExecutor, this.config.getProperty("host", "127.0.0.1"), Integer.parseInt(this.config.getProperty("port", "3306")), this.config.getProperty("database-name", "minecraft"), this.config.getProperty("database-username", "root"), this.config.getProperty("database-password", "password"), this.config.getProperty("database-extra", ""));
 			} catch (SQLException e) {
-				this.nativeExecutor.log(Level.WARNING,
-						"Failed to load the MySQL database, falling back to file database.");
+				this.nativeExecutor.log(Level.WARNING, "Failed to load the MySQL database, falling back to file database.");
 				e.printStackTrace();
 				this.database = new FileDatabase(dataFolder.resolve("playerData.txt"));
 			}
 		} else if (Boolean.parseBoolean(this.config.getProperty("use_mongodb", "false"))) {
 			this.nativeExecutor.log(Level.INFO, "Loading MongoDB database...");
 			try {
-				this.database = new MongoDatabase(this.nativeExecutor,
-						this.config.getProperty("mongo-host", "127.0.0.1"),
-						Integer.parseInt(this.config.getProperty("mongo-port", "27017")),
-						this.config.getProperty("mongo-database", "minecraft"),
-						this.config.getProperty("mongo-username", ""),
-						this.config.getProperty("mongo-password", ""),
-						this.config.getProperty("mongo-connection-string", ""));
+				this.database = new MongoDatabase(this.nativeExecutor, this.config.getProperty("mongo-host", "127.0.0.1"), Integer.parseInt(this.config.getProperty("mongo-port", "27017")), this.config.getProperty("mongo-database", "minecraft"), this.config.getProperty("mongo-username", ""), this.config.getProperty("mongo-password", ""), this.config.getProperty("mongo-connection-string", ""));
 			} catch (Exception e) {
-				this.nativeExecutor.log(Level.WARNING,
-						"Failed to load the MongoDB database, falling back to file database.");
+				this.nativeExecutor.log(Level.WARNING, "Failed to load the MongoDB database, falling back to file database.");
 				e.printStackTrace();
 				this.database = new FileDatabase(dataFolder.resolve("playerData.txt"));
 			}
@@ -167,17 +150,14 @@ public class AlwaysOnline implements IAlwaysOnline {
 
 	public void saveState() {
 		try {
-			Files.write(this.stateFile,
-					(CHECK_SESSION_STATUS + ":" + MOJANG_OFFLINE_MODE).getBytes(StandardCharsets.UTF_8));
+			Files.write(this.stateFile, (CHECK_SESSION_STATUS + ":" + MOJANG_OFFLINE_MODE).getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
-			this.nativeExecutor.log(Level.WARNING,
-					"Failed to save state. This error can be safely ignored. [" + e.getMessage() + "]");
+			this.nativeExecutor.log(Level.WARNING, "Failed to save state. This error can be safely ignored. [" + e.getMessage() + "]");
 		}
 	}
 
 	public void printDebugInformation() {
-		this.nativeExecutor.log(Level.INFO,
-				"Session HEAD check: " + CheckMethods.directSessionServerStatus(this, new Gson()));
+		this.nativeExecutor.log(Level.INFO, "Session HEAD check: " + CheckMethods.directSessionServerStatus(this, new Gson()));
 		this.nativeExecutor.log(Level.INFO, "Mojang offline mode: " + MOJANG_OFFLINE_MODE);
 		this.nativeExecutor.log(Level.INFO, "Check status: " + CHECK_SESSION_STATUS);
 		this.DEBUG = !DEBUG;

@@ -1,10 +1,10 @@
 package me.dablakbandit.ao;
 
+import me.dablakbandit.ao.hybrid.IAlwaysOnline;
+
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-
-import me.dablakbandit.ao.hybrid.IAlwaysOnline;
 
 public interface NativeExecutor {
 

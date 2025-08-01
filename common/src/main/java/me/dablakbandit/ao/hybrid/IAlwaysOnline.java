@@ -4,10 +4,11 @@ import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.databases.Database;
 
 public interface IAlwaysOnline {
-    boolean getOfflineMode();
-    boolean isDebug();
+	boolean getOfflineMode();
 
-    NativeExecutor getNativeExecutor();
+	boolean isDebug();
 
-    Database getDatabase();
+	NativeExecutor getNativeExecutor();
+
+	Database getDatabase();
 }

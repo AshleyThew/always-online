@@ -1,13 +1,9 @@
 package me.dablakbandit.ao.spigot;
 
-import java.nio.file.Path;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-
 import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.databases.Database;
 import me.dablakbandit.ao.databases.MySQLDatabase;
+import me.dablakbandit.ao.hybrid.AlwaysOnline;
 import me.dablakbandit.ao.spigot.authservices.NMSAuthSetup;
 import me.dablakbandit.ao.spigot.metrics.Metrics;
 import me.dablakbandit.ao.utils.UUIDUtil;
@@ -18,7 +14,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import me.dablakbandit.ao.hybrid.AlwaysOnline;
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 
@@ -28,10 +27,8 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 	public void onEnable() {
 
 		if (!this.getServer().getOnlineMode()) {
-			this.getLogger()
-					.info("This server is running in offline mode, so this plugin will have no use on this server!");
-			this.getLogger().info(
-					"If you are running bungeecord, please put AlwaysOnline in the bungeecord plugins directory.");
+			this.getLogger().info("This server is running in offline mode, so this plugin will have no use on this server!");
+			this.getLogger().info("If you are running bungeecord, please put AlwaysOnline in the bungeecord plugins directory.");
 			this.getLogger().info("If you are not running bungeecord, then please remove AlwaysOnline.");
 			this.getPluginLoader().disablePlugin(this);
 			return;
@@ -44,11 +41,8 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 			NMSAuthSetup.setUp(this);
 		} catch (Exception e) {
 			e.printStackTrace();
-			this.getLogger().severe(
-					"Failed to override the authentication handler. Due to possible security risks, the server will now shut down.");
-			this.getLogger()
-					.severe("If this issue persists, please contact the author (" + this.getDescription().getAuthors()
-							+ ") and remove " + this.getDescription().getName() + " from your server temporarily.");
+			this.getLogger().severe("Failed to override the authentication handler. Due to possible security risks, the server will now shut down.");
+			this.getLogger().severe("If this issue persists, please contact the author (" + this.getDescription().getAuthors() + ") and remove " + this.getDescription().getName() + " from your server temporarily.");
 			this.getServer().shutdown();
 		}
 
@@ -76,32 +70,24 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 			switch (args[0].toLowerCase()) {
 				case "toggle":
 					alwaysOnline.toggleOfflineMode();
-					sender.sendMessage(ChatColor.GOLD + "Mojang offline mode is now "
-							+ ((alwaysOnline.getOfflineMode() ? ChatColor.GREEN + "enabled"
-									: ChatColor.RED + "disabled"))
-							+ ChatColor.GOLD + "!");
+					sender.sendMessage(ChatColor.GOLD + "Mojang offline mode is now " + ((alwaysOnline.getOfflineMode() ? ChatColor.GREEN + "enabled" : ChatColor.RED + "disabled")) + ChatColor.GOLD + "!");
 					if (!alwaysOnline.getOfflineMode()) {
-						sender.sendMessage(
-								ChatColor.GOLD + pluginName + " will now treat the mojang servers as being online.");
+						sender.sendMessage(ChatColor.GOLD + pluginName + " will now treat the mojang servers as being online.");
 					} else {
-						sender.sendMessage(ChatColor.GOLD + pluginName
-								+ " will no longer treat the mojang servers as being online.");
+						sender.sendMessage(ChatColor.GOLD + pluginName + " will no longer treat the mojang servers as being online.");
 					}
 					break;
 				case "disable":
 					alwaysOnline.setCheckSessionStatus(false);
-					sender.sendMessage(ChatColor.GOLD + pluginName + " has been disabled! " + pluginName
-							+ " will no longer check to see if the session server is offline.");
+					sender.sendMessage(ChatColor.GOLD + pluginName + " has been disabled! " + pluginName + " will no longer check to see if the session server is offline.");
 					break;
 				case "enable":
 					alwaysOnline.setCheckSessionStatus(true);
-					sender.sendMessage(ChatColor.GOLD + pluginName + " has been enabled! " + pluginName
-							+ " will now check to see if the session server is offline.");
+					sender.sendMessage(ChatColor.GOLD + pluginName + " has been enabled! " + pluginName + " will now check to see if the session server is offline.");
 					break;
 				case "reload":
 					// TODO Add support?
-					sender.sendMessage(ChatColor.RED + "The reload command is not supported when running " + pluginName
-							+ " with spigot.");
+					sender.sendMessage(ChatColor.RED + "The reload command is not supported when running " + pluginName + " with spigot.");
 					break;
 				case "debug":
 					if (sender instanceof Player)
@@ -124,16 +110,14 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 							if (UUIDUtil.isValidUUID(uuidString)) {
 								uuid = UUID.fromString(uuidString);
 							} else {
-								sender.sendMessage(
-										ChatColor.GREEN + "AlwaysOnline " + uuidString + " is not a valid UUID");
+								sender.sendMessage(ChatColor.GREEN + "AlwaysOnline " + uuidString + " is not a valid UUID");
 								break;
 							}
 						} else {
 							// No UUID provided, try to get it from database
 							uuid = this.alwaysOnline.database.getUUID(username);
 							if (uuid == null) {
-								sender.sendMessage(
-										ChatColor.GREEN + "AlwaysOnline player " + username + " not found in database");
+								sender.sendMessage(ChatColor.GREEN + "AlwaysOnline player " + username + " not found in database");
 								break;
 							}
 						}
@@ -160,26 +144,19 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 	}
 
 	private void displayHelp(CommandSender sender) {
-		sender.sendMessage(ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------" + ChatColor.GOLD + "["
-				+ ChatColor.DARK_GREEN + "AlwaysOnline " + ChatColor.GRAY + this.getDescription().getVersion() + ""
-				+ ChatColor.GOLD + "]" + ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------");
-		sender.sendMessage(ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN
-				+ "Toggles between mojang online mode");
+		sender.sendMessage(ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------" + ChatColor.GOLD + "[" + ChatColor.DARK_GREEN + "AlwaysOnline " + ChatColor.GRAY + this.getDescription().getVersion() + "" + ChatColor.GOLD + "]" + ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN + "Toggles between mojang online mode");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline enable - " + ChatColor.DARK_GREEN + "Enables the plugin");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline disable - " + ChatColor.DARK_GREEN + "Disables the plugin");
-		sender.sendMessage(
-				ChatColor.GOLD + "/alwaysonline reload - " + ChatColor.DARK_GREEN + "Reloads the configuration file");
-		sender.sendMessage(
-				ChatColor.GOLD + "/alwaysonline resetcache - " + ChatColor.DARK_GREEN + "Clear database cache");
-		sender.sendMessage(ChatColor.GOLD + "/alwaysonline updateip <username> <ip> [uuid] - " + ChatColor.DARK_GREEN
-				+ "Update a users ip in the database");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline reload - " + ChatColor.DARK_GREEN + "Reloads the configuration file");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline resetcache - " + ChatColor.DARK_GREEN + "Clear database cache");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline updateip <username> <ip> [uuid] - " + ChatColor.DARK_GREEN + "Update a users ip in the database");
 		sender.sendMessage(ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "------------------------------");
 	}
 
 	@Override
 	public Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
-		return this.getServer().getScheduler().runTaskTimerAsynchronously(this, runnable,
-				(timeUnit.toSeconds(delay) * 20), (timeUnit.toSeconds(period) * 20)).getTaskId();
+		return this.getServer().getScheduler().runTaskTimerAsynchronously(this, runnable, (timeUnit.toSeconds(delay) * 20), (timeUnit.toSeconds(period) * 20)).getTaskId();
 	}
 
 	@Override

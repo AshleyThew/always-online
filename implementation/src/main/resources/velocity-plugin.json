@@ -4,7 +4,9 @@
   "version": "@version@",
   "description": "Keep your server running while mojang is offline, Supports all server versions!",
   "url": "https://www.spigotmc.org/resources/alwaysonline.66591/",
-  "authors": ["Dablakbandit"],
+  "authors": [
+    "Dablakbandit"
+  ],
   "dependencies": [],
   "main": "me.dablakbandit.ao.velocity.VelocityLoader"
 }
