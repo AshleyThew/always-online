@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow'
+}
+
+
+dependencies {
+    compileOnly 'org.spigotmc:spigot:1.14-R0.1-SNAPSHOT'
+    compileOnly 'net.md-5:bungeecord-api:1.20-R0.3-SNAPSHOT'
+    compileOnly 'net.md-5:bungeecord-proxy:1.20-R0.3-SNAPSHOT'
+    compileOnly 'com.velocitypowered:velocity-api:3.0.1'
+    compileOnly 'com.github.AshleyThew:mongodb-loader:main-SNAPSHOT'
+
+    compileOnly 'com.google.code.gson:gson:2.10.1'
+
+    compileOnly 'com.google.guava:guava:31.1-jre'
+}
+
+shadowJar {
+    archiveClassifier = ''
+    destinationDirectory = file("$projectDir/target")
+    archiveFileName = "${project.name}-${project.version}-shaded.jar"
+}

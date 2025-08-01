@@ -1,0 +1,35 @@
+{
+  "loader": {
+    "name": "java_plain",
+    "version": "1.0"
+  },
+  "license": "MIT",
+  "plugins": [
+    {
+      "id": "alwaysonline",
+      "entrypoint": "me.dablakbandit.ao.sponge.SpongeLoader",
+      "name": "AlwaysOnline",
+      "description": "AlwaysOnline - Keep your server online even when Mojang servers are down",
+      "version": "@version@",
+      "branding": {},
+      "links": {
+        "homepage": "https://github.com/AshleyThew/always-online",
+        "source": "https://github.com/AshleyThew/always-online",
+        "issues": "https://github.com/AshleyThew/always-online/issues"
+      },
+      "contributors": [
+        {
+          "name": "Dablakbandit",
+          "description": "Developer"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "spongeapi",
+          "version": "8.0.0",
+          "optional": false
+        }
+      ]
+    }
+  ]
+}

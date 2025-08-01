@@ -3,3 +3,7 @@ target/*
 .idea/*
 *dependency-reduced-pom.xml
 **/target/*
+build/
+target/
+bin/
+.gradle/

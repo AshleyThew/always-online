@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation project(':common')
+    compileOnly 'org.spigotmc:spigot:1.16.4-R0.1-SNAPSHOT'
+}
+
+jar {
+    destinationDirectory = file("$projectDir/target")
+    archiveFileName = "${project.name}-${project.version}.jar"
+}

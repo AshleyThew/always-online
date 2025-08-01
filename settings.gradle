@@ -1,0 +1,14 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'always-online'
+
+include 'common'
+include '1_14_plus'
+include '1_16_4_plus'
+include '1_20_2_plus'
+include 'implementation'
+include 'sponge'

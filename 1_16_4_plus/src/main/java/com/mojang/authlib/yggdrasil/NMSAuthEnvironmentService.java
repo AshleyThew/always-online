@@ -23,8 +23,8 @@ public class NMSAuthEnvironmentService extends YggdrasilMinecraftSessionService 
 	private final Database database;
 	private final Method fillGameProfile;
 	private final Method fillProfileProperties;
-	
-	public NMSAuthEnvironmentService(IAlwaysOnline alwaysOnline, YggdrasilMinecraftSessionService oldSessionService, YggdrasilAuthenticationService authenticationService, Environment enviroment, Database database){
+
+	public NMSAuthEnvironmentService(IAlwaysOnline alwaysOnline, YggdrasilMinecraftSessionService oldSessionService, YggdrasilAuthenticationService authenticationService, Environment enviroment, Database database) {
 		super(authenticationService, enviroment);
 		this.oldSessionService = oldSessionService;
 		this.alwaysOnline = alwaysOnline;
@@ -32,51 +32,51 @@ public class NMSAuthEnvironmentService extends YggdrasilMinecraftSessionService 
 		this.fillGameProfile = NMSUtils.getMethod(oldSessionService.getClass(), "fillGameProfile", GameProfile.class, boolean.class);
 		this.fillProfileProperties = NMSUtils.getMethod(oldSessionService.getClass(), "fillProfileProperties", GameProfile.class, boolean.class);
 	}
-	
-	private GameProfile runSuper(GameProfile user, String serverId, InetAddress address){
-		try{
+
+	private GameProfile runSuper(GameProfile user, String serverId, InetAddress address) {
+		try {
 			MethodHandle handle = MethodHandles.lookup().findSpecial(YggdrasilMinecraftSessionService.class, "hasJoinedServer", MethodType.methodType(GameProfile.class, GameProfile.class, String.class, InetAddress.class), NMSAuthEnvironmentService.class);
-			return (GameProfile)handle.invokeWithArguments(this, user, serverId, address);
-		} catch(Throwable throwable){
+			return (GameProfile) handle.invokeWithArguments(this, user, serverId, address);
+		} catch (Throwable throwable) {
 			throwable.printStackTrace();
 		}
 		return null;
 	}
-	
-	private GameProfile runSuper(GameProfile user, String serverId){
-		try{
+
+	private GameProfile runSuper(GameProfile user, String serverId) {
+		try {
 			MethodHandle handle = MethodHandles.lookup().findSpecial(YggdrasilMinecraftSessionService.class, "hasJoinedServer", MethodType.methodType(GameProfile.class, GameProfile.class, String.class), NMSAuthEnvironmentService.class);
-			return (GameProfile)handle.invokeWithArguments(this, user, serverId);
-		} catch(Throwable throwable){
+			return (GameProfile) handle.invokeWithArguments(this, user, serverId);
+		} catch (Throwable throwable) {
 			throwable.printStackTrace();
 		}
 		return null;
 	}
-	
-	public GameProfile hasJoinedServer(GameProfile user, String serverId, InetAddress address) throws AuthenticationUnavailableException{
-		if(alwaysOnline.getOfflineMode()){
+
+	public GameProfile hasJoinedServer(GameProfile user, String serverId, InetAddress address) throws AuthenticationUnavailableException {
+		if (alwaysOnline.getOfflineMode()) {
 			UUID uuid = this.database.getUUID(user.getName());
-			if(uuid != null){
+			if (uuid != null) {
 				return new GameProfile(uuid, user.getName());
-			}else{
+			} else {
 				alwaysOnline.getNativeExecutor().log(Level.INFO, user.getName() + " " + "never joined this server before when mojang servers were online. Denying their access.");
 				throw new AuthenticationUnavailableException("Mojang servers are offline and we can't authenticate the player with our own system.");
 			}
-		}else{
+		} else {
 			return runSuper(user, serverId, address);
 		}
 	}
-	
-	public GameProfile hasJoinedServer(GameProfile user, String serverId) throws AuthenticationUnavailableException{
-		if(alwaysOnline.getOfflineMode()){
+
+	public GameProfile hasJoinedServer(GameProfile user, String serverId) throws AuthenticationUnavailableException {
+		if (alwaysOnline.getOfflineMode()) {
 			UUID uuid = this.database.getUUID(user.getName());
-			if(uuid != null){
+			if (uuid != null) {
 				return new GameProfile(uuid, user.getName());
-			}else{
+			} else {
 				alwaysOnline.getNativeExecutor().log(Level.INFO, user.getName() + " " + "never joined this server before when mojang servers were online. Denying their access.");
 				throw new AuthenticationUnavailableException("Mojang servers are offline and we can't authenticate the player with our own system.");
 			}
-		}else{
+		} else {
 			return runSuper(user, serverId);
 		}
 	}

@@ -1,0 +1,72 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow'
+}
+
+compileJava {
+    options.release = 21
+}
+
+compileTestJava {
+    options.release = 21
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    // Only include common module - NO NMS helpers needed for Sponge
+    implementation project(':common')
+
+    compileOnly 'org.spongepowered:spongeapi:16.0.0-SNAPSHOT'
+    compileOnly 'com.mojang:authlib:6.0.55'
+
+    // Add javax.inject for dependency injection
+    compileOnly 'javax.inject:javax.inject:1'
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    with copySpec {
+        from 'src/main/resources'
+        filter ReplaceTokens, tokens: [
+                'version': version
+        ]
+    }
+}
+
+// Process Java sources to replace version tokens
+task processJava(type: Copy) {
+    from 'src/main/java'
+    into 'build/generated-src'
+    filter ReplaceTokens, tokens: [
+            'version': version
+    ]
+}
+
+// Make compileJava depend on processJava and use the processed sources
+compileJava {
+    dependsOn processJava
+    source = 'build/generated-src'
+    options.release = 21
+}
+
+shadowJar {
+    archiveClassifier = ''
+    destinationDirectory = file("$projectDir/target")
+    archiveFileName = "always-online-sponge-${project.version}.jar"
+}
+
+task copyToOutput(type: Copy, dependsOn: shadowJar) {
+    from shadowJar.archiveFile
+    into "$rootDir/output"
+    rename { "always-online-sponge-latest.jar" }
+}
+
+build.finalizedBy copyToOutput
+
