@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+      - name: Extract version from build.gradle
+        id: get_version
+        run: |
+          VERSION=$(grep "plVersion = " build.gradle | sed "s/.*plVersion = '\(.*\)'.*/\1/")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
+      - name: Verify output files exist and rename with version
+        run: |
+          ls -la output/
+          if [ ! -f "output/always-online-latest.jar" ]; then
+            echo "Error: always-online-latest.jar not found"
+            exit 1
+          fi
+          if [ ! -f "output/always-online-sponge-latest.jar" ]; then
+            echo "Error: always-online-sponge-latest.jar not found"
+            exit 1
+          fi
+
+          # Rename files with version
+          cp "output/always-online-latest.jar" "output/always-online-${{ steps.get_version.outputs.version }}.jar"
+          cp "output/always-online-sponge-latest.jar" "output/always-online-sponge-${{ steps.get_version.outputs.version }}.jar"
+
+          echo "Renamed files:"
+          ls -la output/always-online-*.jar
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Always Online v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Always Online v${{ steps.get_version.outputs.version }}
+
+            ### Files:
+            - `always-online-${{ steps.get_version.outputs.version }}.jar` - Main plugin for Bukkit/Spigot/Paper servers
+            - `always-online-sponge-${{ steps.get_version.outputs.version }}.jar` - Plugin for SpongeAPI servers
+
+            ### Installation:
+            1. Download the appropriate jar file for your server type
+            2. Place it in your server's plugins directory
+            3. Restart your server
+          files: |
+            output/always-online-${{ steps.get_version.outputs.version }}.jar
+            output/always-online-sponge-${{ steps.get_version.outputs.version }}.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
