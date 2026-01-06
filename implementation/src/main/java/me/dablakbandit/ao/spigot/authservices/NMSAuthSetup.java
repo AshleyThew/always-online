@@ -15,11 +15,6 @@ public class NMSAuthSetup {
 	private static Method setUsesAuthentication = NMSUtils.getMethodSilent(classMinecraftServer, new String[]{"setOnlineMode", "setUsesAuthentication", "d"}, boolean.class);
 	private static Method getServer = NMSUtils.getMethod(classMinecraftServer, "getServer");
 
-	private static Class<?> servicesClass = NMSUtils.getClassSilent("net.minecraft.server.Services");
-
-	private static boolean disableOnlineMode = true;
-
-
 	public static void setUp(SpigotLoader spigotLoader) throws Exception {
 		if (Check_1_14.valid()) {
 			spigotLoader.log(Level.INFO, "Attempting setup ~1_14 Auth service");
@@ -30,12 +25,11 @@ public class NMSAuthSetup {
 		} else {
 			spigotLoader.log(Level.INFO, "Attempting setup 1.20+ Auth service");
 			Check_1_20_2.setup(spigotLoader.getAOInstance());
-			disableOnlineMode = false;
 		}
 	}
 
 	public static void setOnlineMode(boolean onlineMode) {
-		if (servicesClass != null && setUsesAuthentication != null && disableOnlineMode) {
+		if (setUsesAuthentication != null) {
 			try {
 				Object ms = getServer.invoke(null);
 				setUsesAuthentication.invoke(ms, onlineMode);

@@ -2,6 +2,7 @@ package me.dablakbandit.ao.spigot;
 
 import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.databases.Database;
+import me.dablakbandit.ao.databases.MongoDatabase;
 import me.dablakbandit.ao.databases.MySQLDatabase;
 import me.dablakbandit.ao.hybrid.AlwaysOnline;
 import me.dablakbandit.ao.spigot.authservices.NMSAuthSetup;
@@ -51,6 +52,8 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 		String databaseType = "FlatFile";
 		if (database instanceof MySQLDatabase) {
 			databaseType = "MySQL";
+		} else if ( database instanceof MongoDatabase){
+			databaseType = "MongoDB";
 		}
 		String finalDatabaseType = databaseType;
 		metrics.addCustomChart(new Metrics.SimplePie("database_type", () -> finalDatabaseType));

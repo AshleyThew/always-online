@@ -100,7 +100,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 			return;
 		}
 
-		if (Integer.valueOf(this.config.getProperty("config_version", "6")) < 6) {
+		if (Integer.valueOf(this.config.getProperty("config_version", "7")) < 7) {
 			this.nativeExecutor.log(Level.WARNING, "*-*-*-*-*-*-*-*-*-*-*-*-*-*");
 			this.nativeExecutor.log(Level.WARNING, "Your configuration file is out of date!");
 			this.nativeExecutor.log(Level.WARNING, "Please consider deleting it for a fresh new generated copy!");
