@@ -16,17 +16,68 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDKs
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
           distribution: 'temurin'
+          java-version: |
+            8
+            17
+            25
+            21
           cache: 'gradle'
+
+      - name: Cache NMS dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository/org/spigotmc
+            ~/.m2/repository/net/md-5
+          key: nms-deps-spigot-1.14-1.16.4-1.20.2-26.1.1-bungee-1.20-R0.3
+
+      # The org.spigotmc:spigot server jars are not published anywhere and
+      # must be produced by Spigot BuildTools into the local maven repository.
+      - name: Build Spigot NMS jars with BuildTools
+        run: |
+          mkdir -p "$HOME/buildtools"
+          cd "$HOME/buildtools"
+          build_rev() {
+            rev="$1"; jhome="$2"
+            if ls "$HOME/.m2/repository/org/spigotmc/spigot/${rev}-R0.1-SNAPSHOT/"spigot-*.jar >/dev/null 2>&1; then
+              echo "Spigot $rev already in local repository, skipping"
+              return 0
+            fi
+            if [ ! -f BuildTools.jar ]; then
+              curl -sSLo BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+            fi
+            mkdir -p "$rev"
+            (cd "$rev" && JAVA_HOME="$jhome" "$jhome/bin/java" -jar ../BuildTools.jar --rev "$rev")
+          }
+          build_rev 1.14 "$JAVA_HOME_8_X64"
+          build_rev 1.16.4 "$JAVA_HOME_8_X64"
+          build_rev 1.20.2 "$JAVA_HOME_17_X64"
+          build_rev 26.1.1 "$JAVA_HOME_21_X64" || build_rev 26.1.1 "$JAVA_HOME_25_X64"
+
+      # net.md-5:bungeecord-proxy snapshots are no longer published
+      # (oss.sonatype.org was decommissioned), so build it from source.
+      - name: Build BungeeCord proxy dependency
+        run: |
+          if ls "$HOME/.m2/repository/net/md-5/bungeecord-proxy/1.20-R0.3-SNAPSHOT/"*.jar >/dev/null 2>&1; then
+            echo "bungeecord-proxy already in local repository, skipping"
+            exit 0
+          fi
+          git clone https://github.com/SpigotMC/BungeeCord.git "$HOME/BungeeCord"
+          cd "$HOME/BungeeCord"
+          rev=$(git log --format=%H -S '<version>1.20-R0.3-SNAPSHOT</version>' -- pom.xml | tail -1)
+          echo "Checking out $rev"
+          git checkout "$rev"
+          JAVA_HOME="$JAVA_HOME_17_X64" mvn -B -q install -DskipTests -pl proxy -am
 
       - name: Build with Gradle
         run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
           chmod +x gradlew
-          ./gradlew build --no-daemon
+          ./gradlew build --no-daemon --no-configuration-cache
 
       - name: Extract version from build.gradle
         id: get_version
