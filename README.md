@@ -177,6 +177,88 @@ message-mojang-offline=&5[&2AlwaysOnline&5]&a Mojang servers are now offline!
 message-mojang-online=&5[&2AlwaysOnline&5]&a Mojang servers are now online!
 ```
 
+### Status Change Notifications
+
+AlwaysOnline can alert you whenever Mojang's session servers go offline or come back online, so staff know even when they aren't in-game. Every method is optional, disabled until configured, and can be combined with the others. All notifications are delivered from the async status-check thread so they never block the server.
+
+The plain-text message used by most methods is shared (Discord has its own messages):
+
+```properties
+# Set to null to disable one direction.
+notify-message-offline=Mojang servers are now offline! Falling back to AlwaysOnline authentication.
+notify-message-online=Mojang servers are back online! Normal authentication restored.
+```
+
+#### Discord Webhook
+
+In Discord, open **Channel Settings → Integrations → Webhooks**, create a webhook and copy its URL. Notifications are sent as color-coded embeds (red for offline, green for online) with a timestamp.
+
+```properties
+discord-webhook-url=https://discord.com/api/webhooks/...
+discord-webhook-username=AlwaysOnline
+# Set to null to disable one direction.
+discord-webhook-message-offline=Mojang servers are now offline! Falling back to AlwaysOnline authentication.
+discord-webhook-message-online=Mojang servers are back online! Normal authentication restored.
+```
+
+#### Generic Webhook
+
+POSTs a JSON payload to any URL — works with Slack-compatible endpoints, n8n, Zapier, home automation, custom dashboards and more:
+
+```properties
+notify-webhook-url=https://example.com/hooks/minecraft
+```
+
+```json
+{ "plugin": "AlwaysOnline", "status": "offline", "message": "...", "timestamp": "2026-08-17T12:00:00Z" }
+```
+
+#### Telegram Bot
+
+Create a bot with [@BotFather](https://t.me/BotFather) to get a token, and use [@userinfobot](https://t.me/userinfobot) to find your chat id (group chat ids also work):
+
+```properties
+telegram-bot-token=123456789:AA...
+telegram-chat-id=123456789
+```
+
+#### ntfy (phone push, no account needed)
+
+Subscribe to a topic in the [ntfy](https://ntfy.sh) app, then point the plugin at the same topic URL. Use a hard-to-guess topic name, since anyone who knows it can subscribe:
+
+```properties
+ntfy-url=https://ntfy.sh/your-secret-topic
+# Only needed for protected topics / self-hosted servers with auth
+ntfy-token=
+```
+
+#### Pushover
+
+Requires a [Pushover](https://pushover.net) application token and your user key:
+
+```properties
+pushover-token=azG...
+pushover-user=uQiR...
+```
+
+#### Gotify
+
+For self-hosted [Gotify](https://gotify.net) servers — create an application to get a token:
+
+```properties
+gotify-url=https://gotify.example.com
+gotify-token=A4...
+```
+
+#### Console Commands
+
+Run any console command on each transition — trigger another plugin, toggle a maintenance mode, etc. No leading slash:
+
+```properties
+notify-command-offline=say Mojang is down, hang tight!
+notify-command-online=say Mojang is back online!
+```
+
 ### Security Considerations
 
 - **IP Address Validation**: Players can only login from their last authenticated IP address during outages

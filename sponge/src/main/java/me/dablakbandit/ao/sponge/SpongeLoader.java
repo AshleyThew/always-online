@@ -140,6 +140,19 @@ public class SpongeLoader implements NativeExecutor {
 		SpongeSessionInjector.getInstance().setOfflineMode(offlineMode);
 	}
 
+	@Override
+	public void dispatchConsoleCommand(String command) {
+		// Commands must be dispatched on the main server thread.
+		Task.Builder builder = Task.builder().execute(() -> {
+			try {
+				Sponge.server().commandManager().process(command);
+			} catch (Exception e) {
+				log(Level.WARNING, "Failed to run notification command '" + command + "'. [" + e.getMessage() + "]");
+			}
+		}).plugin(pluginContainer);
+		Sponge.server().scheduler().submit(builder.build());
+	}
+
 	public PluginContainer getPluginContainer() {
 		return pluginContainer;
 	}

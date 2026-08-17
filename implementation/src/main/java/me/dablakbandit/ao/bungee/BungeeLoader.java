@@ -109,4 +109,9 @@ public class BungeeLoader extends Plugin implements NativeExecutor {
 	public void notifyOfflineMode(boolean offlineMode) {
 
 	}
+
+	@Override
+	public void dispatchConsoleCommand(String command) {
+		this.getProxy().getPluginManager().dispatchCommand(this.getProxy().getConsole(), command);
+	}
 }

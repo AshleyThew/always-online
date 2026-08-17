@@ -227,4 +227,10 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 		NMSAuthSetup.setOnlineMode(!offlineMode);
 	}
 
+	@Override
+	public void dispatchConsoleCommand(String command) {
+		// Commands must be dispatched on the main server thread.
+		this.getServer().getScheduler().runTask(this, () -> this.getServer().dispatchCommand(this.getServer().getConsoleSender(), command));
+	}
+
 }

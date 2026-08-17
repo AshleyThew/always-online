@@ -32,6 +32,8 @@ public interface NativeExecutor {
 
 	void notifyOfflineMode(boolean offlineMode);
 
+	void dispatchConsoleCommand(String command);
+
 	default void initMySQL() {
 
 	}
