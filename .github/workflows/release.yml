@@ -57,6 +57,14 @@ jobs:
           build_rev 1.16.4 "$JAVA_HOME_8_X64"
           build_rev 1.20.2 "$JAVA_HOME_17_X64"
           build_rev 26.1.1 "$JAVA_HOME_21_X64" || build_rev 26.1.1 "$JAVA_HOME_25_X64"
+          # BuildTools can produce a newer patch version for the requested rev
+          # (e.g. --rev 26.1.1 installs spigot-26.1.2-R0.1-SNAPSHOT); alias the
+          # produced jar to the version the build expects.
+          if ! ls "$HOME/.m2/repository/org/spigotmc/spigot/26.1.1-R0.1-SNAPSHOT/"spigot-*.jar >/dev/null 2>&1; then
+            produced=$(ls "$HOME"/.m2/repository/org/spigotmc/spigot/26.1.*-R0.1-SNAPSHOT/spigot-26.1.*.jar | head -1)
+            echo "Aliasing $produced as spigot 26.1.1-R0.1-SNAPSHOT"
+            mvn -B -q install:install-file -Dfile="$produced" -DgroupId=org.spigotmc -DartifactId=spigot -Dversion=26.1.1-R0.1-SNAPSHOT -Dpackaging=jar
+          fi
 
       # net.md-5:bungeecord-proxy snapshots are no longer published
       # (oss.sonatype.org was decommissioned), so build it from source.
