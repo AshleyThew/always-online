@@ -177,6 +177,27 @@ message-mojang-offline=&5[&2AlwaysOnline&5]&a Mojang servers are now offline!
 message-mojang-online=&5[&2AlwaysOnline&5]&a Mojang servers are now online!
 ```
 
+### Discord Webhook Notifications
+
+AlwaysOnline can post to a Discord channel whenever Mojang's session servers go offline or come back online, so staff are alerted even when they aren't in-game.
+
+1. In Discord, open **Channel Settings → Integrations → Webhooks** and create a webhook
+2. Copy the webhook URL into your `config.properties`:
+
+```properties
+# Discord webhook URL to notify when mojang servers go offline or come back online. Leave empty to disable.
+discord-webhook-url=https://discord.com/api/webhooks/...
+
+# The username the webhook posts as
+discord-webhook-username=AlwaysOnline
+
+# The messages sent for each status change. Set to null to disable one.
+discord-webhook-message-offline=Mojang servers are now offline! Falling back to AlwaysOnline authentication.
+discord-webhook-message-online=Mojang servers are back online! Normal authentication restored.
+```
+
+Notifications are sent as color-coded embeds (red for offline, green for online) with a timestamp, and are delivered from the async status-check thread so they never block the server.
+
 ### Security Considerations
 
 - **IP Address Validation**: Players can only login from their last authenticated IP address during outages
