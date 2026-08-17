@@ -1,7 +1,7 @@
 package me.dablakbandit.ao.hybrid;
 
 import com.google.gson.Gson;
-import me.dablakbandit.ao.notifications.DiscordWebhookNotifier;
+import me.dablakbandit.ao.notifications.NotificationManager;
 import me.dablakbandit.ao.utils.CheckMethods;
 
 import java.util.logging.Level;
@@ -14,7 +14,7 @@ public class MojangSessionCheck implements Runnable {
 	private final String messageMojangOffline, messageMojangOnline;
 	private final Gson gson;
 	private final long lockoutDurationMillis;
-	private final DiscordWebhookNotifier discordWebhookNotifier;
+	private final NotificationManager notificationManager;
 	private long lockoutEndTime = 0;
 
 	public MojangSessionCheck(AlwaysOnline alwaysOnline) {
@@ -41,7 +41,7 @@ public class MojangSessionCheck implements Runnable {
 		int lockoutMinutes = Integer.parseInt(this.alwaysOnline.config.getProperty("down-detector-lockout-minutes", "5"));
 		this.lockoutDurationMillis = lockoutMinutes * 60 * 1000L;
 		this.alwaysOnline.nativeExecutor.log(Level.INFO, "Down detector lockout duration: " + lockoutMinutes + " minutes");
-		this.discordWebhookNotifier = new DiscordWebhookNotifier(this.alwaysOnline.nativeExecutor, this.alwaysOnline.config);
+		this.notificationManager = new NotificationManager(this.alwaysOnline.nativeExecutor, this.alwaysOnline.config);
 	}
 
 	@Override
@@ -60,7 +60,7 @@ public class MojangSessionCheck implements Runnable {
 				this.alwaysOnline.nativeExecutor.log(Level.INFO, "Mojang servers appear to be offline. Enabling mojang offline mode...");
 				if (!"null".equals(this.messageMojangOffline))
 					this.alwaysOnline.nativeExecutor.broadcastMessage(this.messageMojangOffline);
-				this.discordWebhookNotifier.notifyOffline();
+				this.notificationManager.notifyOffline();
 			}
 		} else {// Online
 			// Only switch to online mode if lockout period has expired
@@ -70,7 +70,7 @@ public class MojangSessionCheck implements Runnable {
 				this.alwaysOnline.nativeExecutor.log(Level.INFO, "Mojang servers appear to be online. Disabling mojang offline mode...");
 				if (!"null".equals(this.messageMojangOnline))
 					this.alwaysOnline.nativeExecutor.broadcastMessage(this.messageMojangOnline);
-				this.discordWebhookNotifier.notifyOnline();
+				this.notificationManager.notifyOnline();
 			}
 		}
 	}

@@ -171,6 +171,11 @@ public class VelocityLoader implements NativeExecutor {
 	}
 
 	@Override
+	public void dispatchConsoleCommand(String command) {
+		this.server.getCommandManager().executeAsync(this.server.getConsoleCommandSource(), command);
+	}
+
+	@Override
 	public void initMySQL() {
 		try {
 			Class.forName("com.mysql.cj.jdbc.Driver");
