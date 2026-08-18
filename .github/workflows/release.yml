@@ -88,6 +88,28 @@ jobs:
             ~/.m2/repository/net/md-5
           key: nms-deps-spigot-1.14-1.16.4-1.20.2-26.1.1-bungee-1.20-R0.3
 
+      # The spigot 26.1.x jar uses a bundler layout with the server classes in
+      # nested jars, which javac cannot compile against; flatten it in place.
+      - name: Flatten spigot 26.1.x jar for compilation
+        run: |
+          dir=$(ls -d "$HOME"/.m2/repository/org/spigotmc/spigot/26.1.*-R0.1-SNAPSHOT | sort -V | tail -1)
+          ver=$(basename "$dir"); ver=${ver%-R0.1-SNAPSHOT}
+          jar="$dir/spigot-$ver-R0.1-SNAPSHOT.jar"
+          if unzip -l "$jar" | grep -q "net/minecraft/network/Connection.class"; then
+            echo "Server classes present at jar root; nothing to do"
+            exit 0
+          fi
+          echo "Server classes not at jar root; flattening nested jars"
+          tmp=$(mktemp -d); flat=$(mktemp -d)
+          (cd "$tmp" && unzip -q "$jar")
+          find "$tmp" -name '*.jar' | while read -r nested; do
+            echo "  merging $(basename "$nested")"
+            (cd "$flat" && unzip -qon "$nested" -x 'META-INF/*') || true
+          done
+          cp -rn "$tmp"/* "$flat"/ 2>/dev/null || true
+          (cd "$flat" && jar cf "$jar" .)
+          unzip -l "$jar" | grep -q "net/minecraft/network/Connection.class" && echo "Flattened jar contains server classes"
+
       - name: Build with Gradle
         run: |
           export JAVA_HOME="$JAVA_HOME_21_X64"
