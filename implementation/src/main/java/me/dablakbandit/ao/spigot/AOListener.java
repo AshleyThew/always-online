@@ -1,6 +1,7 @@
 package me.dablakbandit.ao.spigot;
 
 import me.dablakbandit.ao.config.AlwaysOnlineConfig;
+import me.dablakbandit.ao.utils.Placeholders;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -36,17 +37,17 @@ public class AOListener implements Listener {
 	public void onAsyncPreLogin(AsyncPlayerPreLoginEvent event) {
 		if (spigotLoader.getAOInstance().getOfflineMode()) {
 			String username = event.getName();
+			String ip = event.getAddress().getHostAddress();
 			if (!this.validate(username)) {
-				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.messages.kickInvalid);
+				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickInvalid, username, ip, null));
 				return;
 			}
-			String ip = event.getAddress().getHostAddress();
 			String lastIP = this.spigotLoader.alwaysOnline.database.getIP(username);
 			if (lastIP == null) {
-				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.messages.kickNew);
+				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickNew, username, ip, null));
 			} else {
 				if (!lastIP.equals(ip)) {
-					event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.messages.kickIp);
+					event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickIp, username, ip, lastIP));
 				} else {
 					this.spigotLoader.log(Level.INFO, username + " was successfully authenticated while mojang servers were offline. Connecting IP is " + ip + " and the last authenticated known IP was " + lastIP);
 				}
@@ -67,6 +68,10 @@ public class AOListener implements Listener {
 				}
 			});
 		}
+	}
+
+	private String kickMessage(String message, String username, String ip, String lastIp) {
+		return ChatColor.translateAlternateColorCodes('&', Placeholders.apply(message, username, ip, lastIp));
 	}
 
 	/**

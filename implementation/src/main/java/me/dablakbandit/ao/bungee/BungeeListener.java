@@ -2,6 +2,7 @@ package me.dablakbandit.ao.bungee;
 
 import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.proxy.ProxyListener;
+import me.dablakbandit.ao.utils.Placeholders;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ServerPing;
 import net.md_5.bungee.api.event.LoginEvent;
@@ -42,7 +43,7 @@ public class BungeeListener extends ProxyListener implements Listener {
 			// Verify if the name attempting to connect is even verified
 			if (!this.validate(event.getConnection().getName())) {
 				debug("Invalid username rejected at pre-login: " + event.getConnection().getName());
-				event.setCancelReason(this.bungeeLoader.alwaysOnline.config.messages.kickInvalid);
+				event.setCancelReason(this.kickMessage(this.bungeeLoader.alwaysOnline.config.messages.kickInvalid, event.getConnection().getName(), event.getConnection().getAddress().getAddress().getHostAddress(), null));
 				event.setCancelled(true);
 				return;
 
@@ -55,7 +56,7 @@ public class BungeeListener extends ProxyListener implements Listener {
 			final String lastip = this.bungeeLoader.alwaysOnline.database.getIP(event.getConnection().getName());
 			debug("PreLogin IP check for " + event.getConnection().getName() + ": current=" + ip + ", last=" + lastip);
 			if (lastip == null) {// If null the player connecting is new
-				event.setCancelReason(this.bungeeLoader.alwaysOnline.config.messages.kickNew);
+				event.setCancelReason(this.kickMessage(this.bungeeLoader.alwaysOnline.config.messages.kickNew, event.getConnection().getName(), ip, null));
 				event.setCancelled(true);
 				this.bungeeLoader.getLogger().info("Denied " + event.getConnection().getName() + " from logging in cause their ip [" + ip + "] has never connected to this server before!");
 			} else {
@@ -71,11 +72,15 @@ public class BungeeListener extends ProxyListener implements Listener {
 				} else {// Deny the player from joining
 					this.bungeeLoader.getLogger().info("Denied " + event.getConnection().getName() + " from logging in cause their ip [" + ip + "] does not match their last ip!");
 					handler.setOnlineMode(true);
-					event.setCancelReason(this.bungeeLoader.alwaysOnline.config.messages.kickIp);
+					event.setCancelReason(this.kickMessage(this.bungeeLoader.alwaysOnline.config.messages.kickIp, event.getConnection().getName(), ip, lastip));
 					event.setCancelled(true);
 				}
 			}
 		}
+	}
+
+	private String kickMessage(String message, String username, String ip, String lastIp) {
+		return ChatColor.translateAlternateColorCodes('&', Placeholders.apply(message, username, ip, lastIp));
 	}
 
 	@EventHandler(priority = -65)

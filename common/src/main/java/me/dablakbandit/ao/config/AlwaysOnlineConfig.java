@@ -25,7 +25,7 @@ public class AlwaysOnlineConfig {
 	@ConfigComment("How the plugin decides whether mojang is online.")
 	public Checks checks = new Checks();
 
-	@ConfigComment("Messages shown to players. Colour codes use &. Where noted, null disables the message.")
+	@ConfigComment({"Messages shown to players. Colour codes use &. Where noted, null disables the message.", "The kick messages below also support these placeholders:", "  {player} (or {player_name}) - the connecting player's username", "  {player_ip} - the ip address the player is connecting from", "  {last_ip} - the last known ip address for the player ('unknown' if there is none)"})
 	public Messages messages = new Messages();
 
 	@ConfigComment({"Status change notifications, sent when mojang servers go offline or come back online.", "Every method is optional and disabled until configured."})
