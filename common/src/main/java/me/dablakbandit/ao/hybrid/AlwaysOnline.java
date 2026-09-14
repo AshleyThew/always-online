@@ -69,6 +69,8 @@ public class AlwaysOnline implements IAlwaysOnline {
 			LegacyPropertiesImporter.Result imported = null;
 			if (Files.notExists(configFile) && Files.exists(legacyFile)) {
 				imported = LegacyPropertiesImporter.importInto(this.config, legacyFile);
+			} else if (Files.exists(legacyFile)) {
+				this.nativeExecutor.log(Level.WARNING, "Both config.yml and " + LegacyPropertiesImporter.LEGACY_FILE + " are present. config.yml is the one being used; nothing in " + LegacyPropertiesImporter.LEGACY_FILE + " is read. Delete or rename it once you have moved anything you still need.");
 			}
 
 			// Loading also rewrites config.yml, adding any options introduced since it was written.

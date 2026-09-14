@@ -1,7 +1,7 @@
 package me.dablakbandit.ao.config;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -94,10 +94,13 @@ public final class LegacyPropertiesImporter {
 	 * plugin read it, so the values arrive exactly as that version used them.
 	 */
 	public static Result importInto(AlwaysOnlineConfig config, Path propertiesFile) throws IOException {
+		// Read exactly the way the old plugin did (Properties.load, so ISO-8859-1 with \\uXXXX
+		// escapes) and keep its behaviour, but drop a leading UTF-8 BOM first: editors on Windows
+		// add one, and it would otherwise fold into the first key's name and lose that setting.
+		byte[] bytes = Files.readAllBytes(propertiesFile);
+		int offset = bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF ? 3 : 0;
 		Properties properties = new Properties();
-		try (InputStream in = Files.newInputStream(propertiesFile)) {
-			properties.load(in);
-		}
+		properties.load(new ByteArrayInputStream(bytes, offset, bytes.length - offset));
 		Result result = new Result();
 		for (Map.Entry<String, Setter> entry : KEYS.entrySet()) {
 			String value = properties.getProperty(entry.getKey());
