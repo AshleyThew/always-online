@@ -32,6 +32,14 @@ Works with: **Bungeecord, Velocity, Spigot, Paper, Bukkit, Sponge**
 
 ### Configuration
 
+Settings live in `config.yml`, generated on first run with every option in it and comments describing them.
+
+**Upgrading from 6.3.x or earlier?** Nothing to do. The old flat `config.properties` is read once, every value is carried into `config.yml`, and the old file is renamed to `config.properties.old`. Anything in it that this version no longer uses is named in the startup log rather than silently dropped.
+
+From then on, each start tops your `config.yml` up with options added in newer releases, using their defaults, and leaves the values you have already set alone. You never need to delete the config to pick up new settings. Keys the plugin does not recognise are kept, and an option written with no value falls back to its default.
+
+If a `config.yml` cannot be read at all - the one much older builds used, or one edited into an unparseable state - it is moved to `config.yml.unreadable` and a fresh one generated, so a broken config never stops the plugin protecting your server.
+
 The plugin supports multiple storage backends for player authentication data. Choose the option that best fits your server setup:
 
 ## Storage Options
@@ -42,10 +50,13 @@ The simplest option that stores player data in a local file.
 
 **Configuration:**
 
-```properties
-# Use file storage (default)
-use_mysql=false
-use_mongodb=false
+```yaml
+# Use file storage (default) - neither database enabled
+storage:
+  mysql:
+    enabled: false
+  mongodb:
+    enabled: false
 ```
 
 **Pros:** Easy setup, no external dependencies  
@@ -57,15 +68,17 @@ Recommended for multi-server networks and better performance.
 
 **Configuration:**
 
-```properties
-# Enable MySQL storage
-use_mysql=true
-host=127.0.0.1
-port=3306
-database-name=minecraft
-database-username=root
-database-password=your_password
-database-extra=
+```yaml
+storage:
+  mysql:
+    enabled: true
+    host: 127.0.0.1
+    port: 3306
+    database: minecraft
+    username: root
+    password: your_password
+    # Extra parameters appended to the JDBC connection URL
+    extra: ''
 ```
 
 **Requirements:**
@@ -79,15 +92,17 @@ Modern NoSQL solution with excellent performance and scalability.
 
 **Configuration:**
 
-```properties
-# Enable MongoDB storage
-use_mongodb=true
-mongo-host=127.0.0.1
-mongo-port=27017
-mongo-database=minecraft
-mongo-username=
-mongo-password=
-mongo-connection-string=
+```yaml
+storage:
+  mongodb:
+    enabled: true
+    host: 127.0.0.1
+    port: 27017
+    database: minecraft
+    username: ''
+    password: ''
+    # Appended to the generated mongodb:// URI, for connection options
+    connection-string: ''
 ```
 
 #### Adding MongoDB Support with mongodb-loader
@@ -98,7 +113,7 @@ To use MongoDB storage, you need to add the `mongodb-loader` dependency:
 
 1. **Download mongodb-loader**: Get the mongodb-loader JAR from the [here](https://www.spigotmc.org/resources/mongodb-loader.124666)
 2. **Install the loader**: Place `mongodb-loader.jar` in your server's `plugins` directory
-3. **Configure AlwaysOnline**: Set `use_mongodb=true` in your AlwaysOnline configuration
+3. **Configure AlwaysOnline**: Set `storage.mongodb.enabled: true` in your AlwaysOnline configuration
 4. **Set up MongoDB connection**: Configure the MongoDB connection details in the config file
 
 **For Plugin Developers:**
@@ -113,26 +128,42 @@ dependencies {
 
 **MongoDB Connection Examples:**
 
-```properties
-# Basic connection (no authentication)
-use_mongodb=true
-mongo-host=localhost
-mongo-port=27017
-mongo-database=minecraft
-mongo-username=
-mongo-password=
+Basic connection (no authentication):
 
-# Authenticated connection
-use_mongodb=true
-mongo-host=your-mongo-server.com
-mongo-port=27017
-mongo-database=minecraft
-mongo-username=your_username
-mongo-password=your_password
+```yaml
+storage:
+  mongodb:
+    enabled: true
+    host: localhost
+    port: 27017
+    database: minecraft
+    username: ''
+    password: ''
+```
 
-# Advanced connection with connection string
-use_mongodb=true
-mongo-connection-string=?ssl=true&authSource=admin
+Authenticated connection:
+
+```yaml
+storage:
+  mongodb:
+    enabled: true
+    host: your-mongo-server.com
+    port: 27017
+    database: minecraft
+    username: your_username
+    password: your_password
+```
+
+Connection options. Whatever you put here is appended to the generated `mongodb://` URI, so it is for tuning the connection rather than replacing it - `host`, `port` and the credentials above still apply:
+
+```yaml
+storage:
+  mongodb:
+    enabled: true
+    host: your-mongo-server.com
+    port: 27017
+    database: minecraft
+    connection-string: '?ssl=true&authSource=admin'
 ```
 
 **MongoDB Requirements:**
@@ -154,7 +185,7 @@ mongo-connection-string=?ssl=true&authSource=admin
 To use AlwaysOnline with Sponge servers:
 
 1. Download the AlwaysOnline plugin and place it in your Sponge server's `mods` directory
-2. Start your Sponge server - the plugin will create a configuration file in `config/alwaysonline/`
+2. Start your Sponge server - the plugin will create `config.yml` in `config/alwaysonline/`
 3. Edit the configuration file with your preferred storage settings
 4. Restart your Sponge server to apply the changes
 
@@ -164,17 +195,41 @@ The plugin will now protect your Sponge server during Mojang outages.
 
 ### Server Monitoring Settings
 
-```properties
-# How often to check Mojang server status (in ticks, 20 ticks = 1 second)
-status-check-delay=1200
+```yaml
+# How often to check Mojang server status, in seconds
+check-interval: 60
 
-# Enable/disable different check methods
-http-head-session-server=true
-mojang-server-status=true
+checks:
+  # Session server check, via https://sessionserver.mojang.com/
+  http-head-session-server: true
+  # How long to stay in offline mode after an outage is detected, in minutes.
+  # Detecting the servers as down again during this period resets the timer.
+  down-detector-lockout-minutes: 5
 
-# Custom messages
-message-mojang-offline=&5[&2AlwaysOnline&5]&a Mojang servers are now offline!
-message-mojang-online=&5[&2AlwaysOnline&5]&a Mojang servers are now online!
+messages:
+  # Broadcast on each transition. Set to null to disable either one.
+  mojang-offline: '&5[&2AlwaysOnline&5]&a Mojang servers are now offline!'
+  mojang-online: '&5[&2AlwaysOnline&5]&a Mojang servers are now online!'
+```
+
+### Kick Messages
+
+The messages shown while Mojang is offline accept `&` colour codes and these placeholders, so you can tell a player exactly why they were turned away:
+
+| Placeholder | Replaced with |
+| ----------- | ------------- |
+| `{player}`, `{player_name}` | the connecting player's username |
+| `{player_ip}` | the address the player is connecting from |
+| `{last_ip}` | the address the server last saw them on, or `unknown` |
+
+```yaml
+messages:
+  # Their address does not match the one on record
+  kick-ip: '&cYou are connecting from &f{player_ip}&c, but we last saw &f{player}&c at &f{last_ip}&c.'
+  # No record of this player at all
+  kick-new: '&cMojang is offline, so we cannot verify &f{player}&c for the first time.'
+  # Username failed validation
+  kick-invalid: '&cThat is not a valid username.'
 ```
 
 ### Status Change Notifications
@@ -183,30 +238,35 @@ AlwaysOnline can alert you whenever Mojang's session servers go offline or come 
 
 The plain-text message used by most methods is shared (Discord has its own messages):
 
-```properties
-# Set to null to disable one direction.
-notify-message-offline=Mojang servers are now offline! Falling back to AlwaysOnline authentication.
-notify-message-online=Mojang servers are back online! Normal authentication restored.
+```yaml
+notifications:
+  # Set to null to disable one direction.
+  message-offline: Mojang servers are now offline! Falling back to AlwaysOnline authentication.
+  message-online: Mojang servers are back online! Normal authentication restored.
 ```
 
 #### Discord Webhook
 
 In Discord, open **Channel Settings → Integrations → Webhooks**, create a webhook and copy its URL. Notifications are sent as color-coded embeds (red for offline, green for online) with a timestamp.
 
-```properties
-discord-webhook-url=https://discord.com/api/webhooks/...
-discord-webhook-username=AlwaysOnline
-# Set to null to disable one direction.
-discord-webhook-message-offline=Mojang servers are now offline! Falling back to AlwaysOnline authentication.
-discord-webhook-message-online=Mojang servers are back online! Normal authentication restored.
+```yaml
+notifications:
+  discord:
+    webhook-url: https://discord.com/api/webhooks/...
+    username: AlwaysOnline
+    # Set to null to disable one direction.
+    message-offline: Mojang servers are now offline! Falling back to AlwaysOnline authentication.
+    message-online: Mojang servers are back online! Normal authentication restored.
 ```
 
 #### Generic Webhook
 
 POSTs a JSON payload to any URL — works with Slack-compatible endpoints, n8n, Zapier, home automation, custom dashboards and more:
 
-```properties
-notify-webhook-url=https://example.com/hooks/minecraft
+```yaml
+notifications:
+  webhook:
+    url: https://example.com/hooks/minecraft
 ```
 
 ```json
@@ -217,46 +277,56 @@ notify-webhook-url=https://example.com/hooks/minecraft
 
 Create a bot with [@BotFather](https://t.me/BotFather) to get a token, and use [@userinfobot](https://t.me/userinfobot) to find your chat id (group chat ids also work):
 
-```properties
-telegram-bot-token=123456789:AA...
-telegram-chat-id=123456789
+```yaml
+notifications:
+  telegram:
+    bot-token: '123456789:AA...'
+    chat-id: '123456789'
 ```
 
 #### ntfy (phone push, no account needed)
 
 Subscribe to a topic in the [ntfy](https://ntfy.sh) app, then point the plugin at the same topic URL. Use a hard-to-guess topic name, since anyone who knows it can subscribe:
 
-```properties
-ntfy-url=https://ntfy.sh/your-secret-topic
-# Only needed for protected topics / self-hosted servers with auth
-ntfy-token=
+```yaml
+notifications:
+  ntfy:
+    url: https://ntfy.sh/your-secret-topic
+    # Only needed for protected topics / self-hosted servers with auth
+    token: ''
 ```
 
 #### Pushover
 
 Requires a [Pushover](https://pushover.net) application token and your user key:
 
-```properties
-pushover-token=azG...
-pushover-user=uQiR...
+```yaml
+notifications:
+  pushover:
+    token: azG...
+    user: uQiR...
 ```
 
 #### Gotify
 
 For self-hosted [Gotify](https://gotify.net) servers — create an application to get a token:
 
-```properties
-gotify-url=https://gotify.example.com
-gotify-token=A4...
+```yaml
+notifications:
+  gotify:
+    url: https://gotify.example.com
+    token: A4...
 ```
 
 #### Console Commands
 
 Run any console command on each transition — trigger another plugin, toggle a maintenance mode, etc. No leading slash:
 
-```properties
-notify-command-offline=say Mojang is down, hang tight!
-notify-command-online=say Mojang is back online!
+```yaml
+notifications:
+  commands:
+    offline: say Mojang is down, hang tight!
+    online: say Mojang is back online!
 ```
 
 ### Security Considerations

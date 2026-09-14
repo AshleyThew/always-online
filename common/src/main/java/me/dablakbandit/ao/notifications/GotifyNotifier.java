@@ -2,12 +2,12 @@ package me.dablakbandit.ao.notifications;
 
 import com.google.gson.Gson;
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class GotifyNotifier extends AbstractStatusNotifier {
 
@@ -15,12 +15,12 @@ public class GotifyNotifier extends AbstractStatusNotifier {
 	private final String serverUrl;
 	private final String token;
 
-	public GotifyNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public GotifyNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		super(nativeExecutor, config);
-		String url = config.getProperty("gotify-url", "").trim();
+		String url = AlwaysOnlineConfig.text(config.gotify.url);
 		while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
 		this.serverUrl = url;
-		this.token = config.getProperty("gotify-token", "").trim();
+		this.token = AlwaysOnlineConfig.text(config.gotify.token);
 	}
 
 	@Override

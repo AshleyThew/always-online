@@ -58,6 +58,8 @@ compileJava {
 
 shadowJar {
     archiveClassifier = ''
+    relocate 'me.dablakbandit.annotateconfig', 'me.dablakbandit.ao.libs.annotateconfig'
+    relocate 'org.yaml.snakeyaml', 'me.dablakbandit.ao.libs.snakeyaml'
     destinationDirectory = file("$projectDir/target")
     archiveFileName = "always-online-sponge-${project.version}.jar"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

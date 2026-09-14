@@ -1,5 +1,7 @@
 package me.dablakbandit.ao.spigot;
 
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
+import me.dablakbandit.ao.utils.Placeholders;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -21,8 +23,8 @@ public class AOListener implements Listener {
 
 	public AOListener(SpigotLoader spigotLoader) {
 		this.spigotLoader = spigotLoader;
-		this.MOTD = ChatColor.translateAlternateColorCodes('&', this.spigotLoader.alwaysOnline.config.getProperty("message-motd-offline", "&eMojang servers are down,\\n&ebut you can still connect!"));
-		if ("null".equals(this.MOTD)) this.MOTD = null;
+		String motd = this.spigotLoader.alwaysOnline.config.messages.motdOffline;
+		this.MOTD = AlwaysOnlineConfig.disabled(motd) ? null : ChatColor.translateAlternateColorCodes('&', motd);
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
@@ -35,17 +37,17 @@ public class AOListener implements Listener {
 	public void onAsyncPreLogin(AsyncPlayerPreLoginEvent event) {
 		if (spigotLoader.getAOInstance().getOfflineMode()) {
 			String username = event.getName();
+			String ip = event.getAddress().getHostAddress();
 			if (!this.validate(username)) {
-				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.getProperty("message-kick-invalid", "Invalid username. Hacking?"));
+				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickInvalid, username, ip, null));
 				return;
 			}
-			String ip = event.getAddress().getHostAddress();
 			String lastIP = this.spigotLoader.alwaysOnline.database.getIP(username);
 			if (lastIP == null) {
-				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.getProperty("message-kick-new", "We can not let you join because the mojang servers are offline!"));
+				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickNew, username, ip, null));
 			} else {
 				if (!lastIP.equals(ip)) {
-					event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.spigotLoader.alwaysOnline.config.getProperty("message-kick-ip", "We can not let you join since you are not on the same computer you logged on before!"));
+					event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickIp, username, ip, lastIP));
 				} else {
 					this.spigotLoader.log(Level.INFO, username + " was successfully authenticated while mojang servers were offline. Connecting IP is " + ip + " and the last authenticated known IP was " + lastIP);
 				}
@@ -66,6 +68,10 @@ public class AOListener implements Listener {
 				}
 			});
 		}
+	}
+
+	private String kickMessage(String message, String username, String ip, String lastIp) {
+		return ChatColor.translateAlternateColorCodes('&', Placeholders.apply(message, username, ip, lastIp));
 	}
 
 	/**

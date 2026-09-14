@@ -1,8 +1,10 @@
 package me.dablakbandit.ao.hybrid;
 
-import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
+import me.dablakbandit.annotateconfig.AnnotateConfig;
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
+import me.dablakbandit.ao.config.LegacyPropertiesImporter;
 import me.dablakbandit.ao.databases.Database;
 import me.dablakbandit.ao.databases.FileDatabase;
 import me.dablakbandit.ao.databases.MongoDatabase;
@@ -11,13 +13,11 @@ import me.dablakbandit.ao.update.UpdateChecker;
 import me.dablakbandit.ao.utils.CheckMethods;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
@@ -26,8 +26,10 @@ public class AlwaysOnline implements IAlwaysOnline {
 
 	private boolean MOJANG_OFFLINE_MODE = false, CHECK_SESSION_STATUS = true, DEBUG = false;
 
+	private static final String UNREADABLE_FILE = "config.yml.unreadable";
+
 	public Database database = null;
-	public Properties config;
+	public AlwaysOnlineConfig config = new AlwaysOnlineConfig();
 
 	public final NativeExecutor nativeExecutor;
 	private Path stateFile;
@@ -58,29 +60,46 @@ public class AlwaysOnline implements IAlwaysOnline {
 		this.nativeExecutor.log(Level.INFO, "Loading configuration...");
 
 		Path dataFolder = this.nativeExecutor.dataFolder();
-		Path configFile = dataFolder.resolve("config.properties");
-		Path oldConfigFile = dataFolder.resolve("config.yml");
+		Path configFile = dataFolder.resolve("config.yml");
+		Path legacyFile = dataFolder.resolve(LegacyPropertiesImporter.LEGACY_FILE);
 		try {
-			if (Files.notExists(dataFolder)) Files.createDirectory(dataFolder);
-			// Save default configuration
-			if (Files.notExists(configFile)) {
-				// New config file doesn't exist but the old one does.
-				if (Files.exists(oldConfigFile)) {
-					this.nativeExecutor.log(Level.WARNING, "Detected an old configuration file. Please update the new file config.properties");
-					Files.move(oldConfigFile, dataFolder.resolve("obsolete_config.yml"));
-				}
-				// First time the plugin is running. Copy the configuration file to the data
-				// folder.
-				InputStream in = this.getClass().getResourceAsStream("/config.properties");
-				Files.write(configFile, ByteStreams.toByteArray(in));
-				in.close();
+			if (Files.notExists(dataFolder)) Files.createDirectories(dataFolder);
+			this.config = new AlwaysOnlineConfig();
+
+			// Upgrading from 6.3.x: seed the schema from config.properties before the first load
+			// writes config.yml, so every setting carries across and the old file is kept aside.
+			LegacyPropertiesImporter.Result imported = null;
+			if (Files.notExists(configFile) && Files.exists(legacyFile)) {
+				imported = LegacyPropertiesImporter.importInto(this.config, legacyFile);
+			} else if (Files.exists(legacyFile)) {
+				this.nativeExecutor.log(Level.WARNING, "Both config.yml and " + LegacyPropertiesImporter.LEGACY_FILE + " are present. config.yml is the one being used; nothing in " + LegacyPropertiesImporter.LEGACY_FILE + " is read. Delete or rename it once you have moved anything you still need.");
 			}
 
-			// Load the configuration file.
-			this.config = new Properties();
-			InputStream in = Files.newInputStream(configFile, StandardOpenOption.READ);
-			this.config.load(in);
-			in.close();
+			// Loading also rewrites config.yml, adding any options introduced since it was written.
+			// A file this version cannot read - the config.yml much older builds used, or one edited
+			// into an unparseable state - is moved aside and replaced rather than taken as a reason
+			// to stop, since a server with no AlwaysOnline is exactly what this plugin exists to avoid.
+			try {
+				AnnotateConfig.builder(this.config, configFile).build().load();
+			} catch (IOException | RuntimeException broken) {
+				Path aside = dataFolder.resolve(UNREADABLE_FILE);
+				Files.move(configFile, aside, StandardCopyOption.REPLACE_EXISTING);
+				this.nativeExecutor.log(Level.WARNING, "config.yml could not be read (" + broken + "). It has been moved to " + UNREADABLE_FILE + " and a fresh one generated with the default settings. Copy anything you need back across, then run /alwaysonline reload.");
+				this.config = new AlwaysOnlineConfig();
+				AnnotateConfig.builder(this.config, configFile).build().load();
+			}
+			this.config.applyRequiredDefaults();
+
+			if (imported != null) {
+				Files.move(legacyFile, dataFolder.resolve(LegacyPropertiesImporter.RENAMED_FILE), StandardCopyOption.REPLACE_EXISTING);
+				this.nativeExecutor.log(Level.INFO, "Imported " + imported.imported.size() + " setting(s) from " + LegacyPropertiesImporter.LEGACY_FILE + " into config.yml. The old file was renamed to " + LegacyPropertiesImporter.RENAMED_FILE + ".");
+				for (String warning : imported.warnings) {
+					this.nativeExecutor.log(Level.WARNING, warning);
+				}
+				if (!imported.unknown.isEmpty()) {
+					this.nativeExecutor.log(Level.WARNING, "These options in " + LegacyPropertiesImporter.LEGACY_FILE + " are not used by this version and were not carried over: " + String.join(", ", imported.unknown));
+				}
+			}
 
 			// Read the state.txt file and assign variables
 			this.stateFile = dataFolder.resolve("state.txt");
@@ -93,23 +112,15 @@ public class AlwaysOnline implements IAlwaysOnline {
 					this.nativeExecutor.log(Level.INFO, "Successfully loaded previous state variables!");
 				}
 			}
-		} catch (IOException e) {
+		} catch (IOException | RuntimeException e) {
 			e.printStackTrace();
 			this.nativeExecutor.log(Level.INFO, "Failed to load configuration file. Aborting...");
 			this.nativeExecutor.disablePlugin();
 			return;
 		}
 
-		if (Integer.valueOf(this.config.getProperty("config_version", "7")) < 7) {
-			this.nativeExecutor.log(Level.WARNING, "*-*-*-*-*-*-*-*-*-*-*-*-*-*");
-			this.nativeExecutor.log(Level.WARNING, "Your configuration file is out of date!");
-			this.nativeExecutor.log(Level.WARNING, "Please consider deleting it for a fresh new generated copy!");
-			this.nativeExecutor.log(Level.WARNING, "Once done, do /alwaysonline reload");
-			this.nativeExecutor.log(Level.WARNING, "*-*-*-*-*-*-*-*-*-*-*-*-*-*");
-		}
-
 		// No negative numbers.
-		int checkInterval = Math.max(0, Integer.valueOf(this.config.getProperty("check-interval", "30")));
+		int checkInterval = Math.max(0, this.config.checkInterval);
 		if (checkInterval < 15) {
 			this.nativeExecutor.log(Level.WARNING, "Your check-interval is less than 15 seconds." + " This may cause issues and is recommended to be set to a higher number.");
 		}
@@ -117,20 +128,22 @@ public class AlwaysOnline implements IAlwaysOnline {
 		// Kill any existing threads or listeners in case of a re-load
 		this.nativeExecutor.cancelAllOurTasks();
 		this.nativeExecutor.unregisterAllListeners();
-		if (Boolean.parseBoolean(this.config.getProperty("use_mysql", "false"))) {
+		if (this.config.storage.mysql.enabled) {
 			this.nativeExecutor.log(Level.INFO, "Loading MySQL database...");
 			this.nativeExecutor.initMySQL();
 			try {
-				this.database = new MySQLDatabase(this.nativeExecutor, this.config.getProperty("host", "127.0.0.1"), Integer.parseInt(this.config.getProperty("port", "3306")), this.config.getProperty("database-name", "minecraft"), this.config.getProperty("database-username", "root"), this.config.getProperty("database-password", "password"), this.config.getProperty("database-extra", ""));
+				AlwaysOnlineConfig.Storage.Mysql mysql = this.config.storage.mysql;
+				this.database = new MySQLDatabase(this.nativeExecutor, mysql.host, mysql.port, mysql.database, mysql.username, mysql.password, AlwaysOnlineConfig.exact(mysql.extra));
 			} catch (SQLException e) {
 				this.nativeExecutor.log(Level.WARNING, "Failed to load the MySQL database, falling back to file database.");
 				e.printStackTrace();
 				this.database = new FileDatabase(dataFolder.resolve("playerData.txt"));
 			}
-		} else if (Boolean.parseBoolean(this.config.getProperty("use_mongodb", "false"))) {
+		} else if (this.config.storage.mongodb.enabled) {
 			this.nativeExecutor.log(Level.INFO, "Loading MongoDB database...");
 			try {
-				this.database = new MongoDatabase(this.nativeExecutor, this.config.getProperty("mongo-host", "127.0.0.1"), Integer.parseInt(this.config.getProperty("mongo-port", "27017")), this.config.getProperty("mongo-database", "minecraft"), this.config.getProperty("mongo-username", ""), this.config.getProperty("mongo-password", ""), this.config.getProperty("mongo-connection-string", ""));
+				AlwaysOnlineConfig.Storage.Mongodb mongodb = this.config.storage.mongodb;
+				this.database = new MongoDatabase(this.nativeExecutor, mongodb.host, mongodb.port, mongodb.database, AlwaysOnlineConfig.exact(mongodb.username), AlwaysOnlineConfig.exact(mongodb.password), AlwaysOnlineConfig.exact(mongodb.connectionString));
 			} catch (Exception e) {
 				this.nativeExecutor.log(Level.WARNING, "Failed to load the MongoDB database, falling back to file database.");
 				e.printStackTrace();

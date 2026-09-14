@@ -1,6 +1,7 @@
 package me.dablakbandit.ao.hybrid;
 
 import com.google.gson.Gson;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.notifications.NotificationManager;
 import me.dablakbandit.ao.utils.CheckMethods;
 
@@ -20,7 +21,7 @@ public class MojangSessionCheck implements Runnable {
 	public MojangSessionCheck(AlwaysOnline alwaysOnline) {
 		this.alwaysOnline = alwaysOnline;
 		int methodCount = 0;
-		boolean headCheck = Boolean.parseBoolean(this.alwaysOnline.config.getProperty("http-head-session-server", "false"));
+		boolean headCheck = this.alwaysOnline.config.checks.httpHeadSessionServer;
 		if (methodCount == 0 && !headCheck) {
 			this.alwaysOnline.nativeExecutor.log(Level.WARNING, "No check methods have been enabled in the configuration. " + "Going to enable the head session server check.");
 			headCheck = true;
@@ -36,12 +37,12 @@ public class MojangSessionCheck implements Runnable {
 
 		this.alwaysOnline.nativeExecutor.log(Level.INFO, "Total check methods active: " + methodCount);
 		this.totalCheckMethods = methodCount;
-		this.messageMojangOffline = this.alwaysOnline.config.getProperty("message-mojang-offline", "&5[&2AlwaysOnline&5]&a Mojang servers are now offline!");
-		this.messageMojangOnline = this.alwaysOnline.config.getProperty("message-mojang-online", "&5[&2AlwaysOnline&5]&a Mojang servers are now online!");
-		int lockoutMinutes = Integer.parseInt(this.alwaysOnline.config.getProperty("down-detector-lockout-minutes", "5"));
+		this.messageMojangOffline = this.alwaysOnline.config.messages.mojangOffline;
+		this.messageMojangOnline = this.alwaysOnline.config.messages.mojangOnline;
+		int lockoutMinutes = this.alwaysOnline.config.checks.downDetectorLockoutMinutes;
 		this.lockoutDurationMillis = lockoutMinutes * 60 * 1000L;
 		this.alwaysOnline.nativeExecutor.log(Level.INFO, "Down detector lockout duration: " + lockoutMinutes + " minutes");
-		this.notificationManager = new NotificationManager(this.alwaysOnline.nativeExecutor, this.alwaysOnline.config);
+		this.notificationManager = new NotificationManager(this.alwaysOnline.nativeExecutor, this.alwaysOnline.config.notifications);
 	}
 
 	@Override
@@ -58,7 +59,7 @@ public class MojangSessionCheck implements Runnable {
 				alwaysOnline.toggleOfflineMode();
 				this.alwaysOnline.saveState();
 				this.alwaysOnline.nativeExecutor.log(Level.INFO, "Mojang servers appear to be offline. Enabling mojang offline mode...");
-				if (!"null".equals(this.messageMojangOffline))
+				if (!AlwaysOnlineConfig.disabled(this.messageMojangOffline))
 					this.alwaysOnline.nativeExecutor.broadcastMessage(this.messageMojangOffline);
 				this.notificationManager.notifyOffline();
 			}
@@ -68,7 +69,7 @@ public class MojangSessionCheck implements Runnable {
 				alwaysOnline.toggleOfflineMode();
 				this.alwaysOnline.saveState();
 				this.alwaysOnline.nativeExecutor.log(Level.INFO, "Mojang servers appear to be online. Disabling mojang offline mode...");
-				if (!"null".equals(this.messageMojangOnline))
+				if (!AlwaysOnlineConfig.disabled(this.messageMojangOnline))
 					this.alwaysOnline.nativeExecutor.broadcastMessage(this.messageMojangOnline);
 				this.notificationManager.notifyOnline();
 			}

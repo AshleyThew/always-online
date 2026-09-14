@@ -1,21 +1,21 @@
 package me.dablakbandit.ao.notifications;
 
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class NtfyNotifier extends AbstractStatusNotifier {
 
 	private final String topicUrl;
 	private final String token;
 
-	public NtfyNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public NtfyNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		super(nativeExecutor, config);
-		this.topicUrl = config.getProperty("ntfy-url", "").trim();
-		this.token = config.getProperty("ntfy-token", "").trim();
+		this.topicUrl = AlwaysOnlineConfig.text(config.ntfy.url);
+		this.token = AlwaysOnlineConfig.text(config.ntfy.token);
 	}
 
 	@Override

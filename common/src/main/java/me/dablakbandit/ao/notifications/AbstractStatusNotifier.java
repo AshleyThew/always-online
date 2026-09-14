@@ -1,20 +1,17 @@
 package me.dablakbandit.ao.notifications;
 
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
-import java.util.Properties;
 import java.util.logging.Level;
 
 public abstract class AbstractStatusNotifier implements StatusNotifier {
 
-	public static final String DEFAULT_MESSAGE_OFFLINE = "Mojang servers are now offline! Falling back to AlwaysOnline authentication.";
-	public static final String DEFAULT_MESSAGE_ONLINE = "Mojang servers are back online! Normal authentication restored.";
-
 	protected final NativeExecutor nativeExecutor;
 	protected final String messageOffline, messageOnline;
 
-	protected AbstractStatusNotifier(NativeExecutor nativeExecutor, Properties config) {
-		this(nativeExecutor, config.getProperty("notify-message-offline", DEFAULT_MESSAGE_OFFLINE), config.getProperty("notify-message-online", DEFAULT_MESSAGE_ONLINE));
+	protected AbstractStatusNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
+		this(nativeExecutor, config.messageOffline, config.messageOnline);
 	}
 
 	protected AbstractStatusNotifier(NativeExecutor nativeExecutor, String messageOffline, String messageOnline) {
@@ -34,7 +31,7 @@ public abstract class AbstractStatusNotifier implements StatusNotifier {
 	}
 
 	private void send(boolean offline, String message) {
-		if (!this.isEnabled() || "null".equals(message)) return;
+		if (!this.isEnabled() || AlwaysOnlineConfig.disabled(message)) return;
 		try {
 			this.sendNotification(offline, message);
 		} catch (Exception e) {

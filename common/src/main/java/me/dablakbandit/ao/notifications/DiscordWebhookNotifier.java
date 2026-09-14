@@ -2,6 +2,7 @@ package me.dablakbandit.ao.notifications;
 
 import com.google.gson.Gson;
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -9,7 +10,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 public class DiscordWebhookNotifier extends AbstractStatusNotifier {
 
@@ -20,10 +20,10 @@ public class DiscordWebhookNotifier extends AbstractStatusNotifier {
 	private final String webhookUrl;
 	private final String username;
 
-	public DiscordWebhookNotifier(NativeExecutor nativeExecutor, Properties config) {
-		super(nativeExecutor, config.getProperty("discord-webhook-message-offline", DEFAULT_MESSAGE_OFFLINE), config.getProperty("discord-webhook-message-online", DEFAULT_MESSAGE_ONLINE));
-		this.webhookUrl = config.getProperty("discord-webhook-url", "").trim();
-		this.username = config.getProperty("discord-webhook-username", "AlwaysOnline").trim();
+	public DiscordWebhookNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
+		super(nativeExecutor, config.discord.messageOffline, config.discord.messageOnline);
+		this.webhookUrl = AlwaysOnlineConfig.text(config.discord.webhookUrl);
+		this.username = AlwaysOnlineConfig.text(config.discord.username);
 	}
 
 	@Override
