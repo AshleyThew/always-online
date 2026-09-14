@@ -1,7 +1,11 @@
 package me.dablakbandit.ao.config;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -94,13 +98,16 @@ public final class LegacyPropertiesImporter {
 	 * plugin read it, so the values arrive exactly as that version used them.
 	 */
 	public static Result importInto(AlwaysOnlineConfig config, Path propertiesFile) throws IOException {
-		// Read exactly the way the old plugin did (Properties.load, so ISO-8859-1 with \\uXXXX
-		// escapes) and keep its behaviour, but drop a leading UTF-8 BOM first: editors on Windows
-		// add one, and it would otherwise fold into the first key's name and lose that setting.
+		// Server owners save this file from ordinary editors, so decorative characters such as the
+		// fullwidth brackets U+3010/U+3011 arrive as raw UTF-8. Properties.load(InputStream) always
+		// reads ISO-8859-1, which splits each of those into three wrong characters, so decode the
+		// bytes as UTF-8 when they are valid UTF-8 and only fall back to ISO-8859-1 when they are
+		// not. Plain ASCII and \\uXXXX escapes read identically either way. A leading BOM is dropped
+		// first: it would otherwise fold into the first key's name and lose that setting.
 		byte[] bytes = Files.readAllBytes(propertiesFile);
 		int offset = bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF ? 3 : 0;
 		Properties properties = new Properties();
-		properties.load(new ByteArrayInputStream(bytes, offset, bytes.length - offset));
+		properties.load(new StringReader(decode(bytes, offset)));
 		Result result = new Result();
 		for (Map.Entry<String, Setter> entry : KEYS.entrySet()) {
 			String value = properties.getProperty(entry.getKey());
@@ -112,6 +119,19 @@ public final class LegacyPropertiesImporter {
 			if (!KEYS.containsKey(key)) result.unknown.add(key);
 		}
 		return result;
+	}
+
+	private static String decode(byte[] bytes, int offset) {
+		ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, bytes.length - offset);
+		try {
+			return StandardCharsets.UTF_8.newDecoder()
+					.onMalformedInput(CodingErrorAction.REPORT)
+					.onUnmappableCharacter(CodingErrorAction.REPORT)
+					.decode(buffer)
+					.toString();
+		} catch (CharacterCodingException notUtf8) {
+			return new String(bytes, offset, bytes.length - offset, StandardCharsets.ISO_8859_1);
+		}
 	}
 
 	private static int integer(String key, String value, int fallback, Result result) {

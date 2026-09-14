@@ -2,6 +2,7 @@ package me.dablakbandit.ao.hybrid;
 
 import com.google.gson.Gson;
 import me.dablakbandit.annotateconfig.AnnotateConfig;
+import me.dablakbandit.annotateconfig.ConfigHandle;
 import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.config.LegacyPropertiesImporter;
@@ -79,16 +80,27 @@ public class AlwaysOnline implements IAlwaysOnline {
 			// A file this version cannot read - the config.yml much older builds used, or one edited
 			// into an unparseable state - is moved aside and replaced rather than taken as a reason
 			// to stop, since a server with no AlwaysOnline is exactly what this plugin exists to avoid.
+			ConfigHandle handle;
 			try {
-				AnnotateConfig.builder(this.config, configFile).build().load();
+				handle = AnnotateConfig.builder(this.config, configFile).build();
+				handle.load();
 			} catch (IOException | RuntimeException broken) {
 				Path aside = dataFolder.resolve(UNREADABLE_FILE);
 				Files.move(configFile, aside, StandardCopyOption.REPLACE_EXISTING);
 				this.nativeExecutor.log(Level.WARNING, "config.yml could not be read (" + broken + "). It has been moved to " + UNREADABLE_FILE + " and a fresh one generated with the default settings. Copy anything you need back across, then run /alwaysonline reload.");
 				this.config = new AlwaysOnlineConfig();
-				AnnotateConfig.builder(this.config, configFile).build().load();
+				handle = AnnotateConfig.builder(this.config, configFile).build();
+				handle.load();
 			}
 			this.config.applyRequiredDefaults();
+
+			// 6.4.0 imported config.properties with the wrong character encoding, so decorative
+			// characters in messages were saved garbled. Fix them once and write the file back.
+			int repaired = this.config.repairMisreadMessages();
+			if (repaired > 0) {
+				handle.save();
+				this.nativeExecutor.log(Level.INFO, "Repaired " + repaired + " message(s) in config.yml that 6.4.0 imported with the wrong character encoding.");
+			}
 
 			if (imported != null) {
 				Files.move(legacyFile, dataFolder.resolve(LegacyPropertiesImporter.RENAMED_FILE), StandardCopyOption.REPLACE_EXISTING);
