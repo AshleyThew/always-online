@@ -206,6 +206,26 @@ messages:
   mojang-online: '&5[&2AlwaysOnline&5]&a Mojang servers are now online!'
 ```
 
+### Kick Messages
+
+The messages shown while Mojang is offline accept `&` colour codes and these placeholders, so you can tell a player exactly why they were turned away:
+
+| Placeholder | Replaced with |
+| ----------- | ------------- |
+| `{player}`, `{player_name}` | the connecting player's username |
+| `{player_ip}` | the address the player is connecting from |
+| `{last_ip}` | the address the server last saw them on, or `unknown` |
+
+```yaml
+messages:
+  # Their address does not match the one on record
+  kick-ip: '&cYou are connecting from &f{player_ip}&c, but we last saw &f{player}&c at &f{last_ip}&c.'
+  # No record of this player at all
+  kick-new: '&cMojang is offline, so we cannot verify &f{player}&c for the first time.'
+  # Username failed validation
+  kick-invalid: '&cThat is not a valid username.'
+```
+
 ### Status Change Notifications
 
 AlwaysOnline can alert you whenever Mojang's session servers go offline or come back online, so staff know even when they aren't in-game. Every method is optional, disabled until configured, and can be combined with the others. All notifications are delivered from the async status-check thread so they never block the server.
