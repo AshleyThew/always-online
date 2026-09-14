@@ -195,7 +195,7 @@ public class AlwaysOnlineConfig {
 
 			public String password = "";
 
-			@ConfigComment("When set, used instead of host, port, username and password.")
+			@ConfigComment({"Appended to the generated mongodb:// URI, so use it for connection options,", "for example '?ssl=true&authSource=admin'."})
 			public String connectionString = "";
 
 		}
@@ -226,9 +226,21 @@ public class AlwaysOnlineConfig {
 		return message == null || message.trim().isEmpty() || message.trim().equalsIgnoreCase("null");
 	}
 
-	/** A trimmed value, with a YAML null read as empty so callers can compare without null checks. */
+	/**
+	 * A trimmed value, with a YAML null read as empty so callers can compare without null checks.
+	 * Use this for URLs and tokens, where stray whitespace is a paste accident rather than data.
+	 */
 	public static String text(String value) {
 		return value == null ? "" : value.trim();
+	}
+
+	/**
+	 * A YAML null read as empty, with the value otherwise untouched. Use this for anything handed
+	 * to a database driver: a password or a connection suffix may end in a space on purpose, and
+	 * the old .properties loader passed those through unchanged.
+	 */
+	public static String exact(String value) {
+		return value == null ? "" : value;
 	}
 
 }

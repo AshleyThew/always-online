@@ -26,6 +26,8 @@ public class AlwaysOnline implements IAlwaysOnline {
 
 	private boolean MOJANG_OFFLINE_MODE = false, CHECK_SESSION_STATUS = true, DEBUG = false;
 
+	private static final String UNREADABLE_FILE = "config.yml.unreadable";
+
 	public Database database = null;
 	public AlwaysOnlineConfig config = new AlwaysOnlineConfig();
 
@@ -74,7 +76,18 @@ public class AlwaysOnline implements IAlwaysOnline {
 			}
 
 			// Loading also rewrites config.yml, adding any options introduced since it was written.
-			AnnotateConfig.builder(this.config, configFile).build().load();
+			// A file this version cannot read - the config.yml much older builds used, or one edited
+			// into an unparseable state - is moved aside and replaced rather than taken as a reason
+			// to stop, since a server with no AlwaysOnline is exactly what this plugin exists to avoid.
+			try {
+				AnnotateConfig.builder(this.config, configFile).build().load();
+			} catch (IOException | RuntimeException broken) {
+				Path aside = dataFolder.resolve(UNREADABLE_FILE);
+				Files.move(configFile, aside, StandardCopyOption.REPLACE_EXISTING);
+				this.nativeExecutor.log(Level.WARNING, "config.yml could not be read (" + broken + "). It has been moved to " + UNREADABLE_FILE + " and a fresh one generated with the default settings. Copy anything you need back across, then run /alwaysonline reload.");
+				this.config = new AlwaysOnlineConfig();
+				AnnotateConfig.builder(this.config, configFile).build().load();
+			}
 			this.config.applyRequiredDefaults();
 
 			if (imported != null) {
@@ -120,7 +133,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 			this.nativeExecutor.initMySQL();
 			try {
 				AlwaysOnlineConfig.Storage.Mysql mysql = this.config.storage.mysql;
-				this.database = new MySQLDatabase(this.nativeExecutor, mysql.host, mysql.port, mysql.database, mysql.username, mysql.password, AlwaysOnlineConfig.text(mysql.extra));
+				this.database = new MySQLDatabase(this.nativeExecutor, mysql.host, mysql.port, mysql.database, mysql.username, mysql.password, AlwaysOnlineConfig.exact(mysql.extra));
 			} catch (SQLException e) {
 				this.nativeExecutor.log(Level.WARNING, "Failed to load the MySQL database, falling back to file database.");
 				e.printStackTrace();
@@ -130,7 +143,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 			this.nativeExecutor.log(Level.INFO, "Loading MongoDB database...");
 			try {
 				AlwaysOnlineConfig.Storage.Mongodb mongodb = this.config.storage.mongodb;
-				this.database = new MongoDatabase(this.nativeExecutor, mongodb.host, mongodb.port, mongodb.database, AlwaysOnlineConfig.text(mongodb.username), AlwaysOnlineConfig.text(mongodb.password), AlwaysOnlineConfig.text(mongodb.connectionString));
+				this.database = new MongoDatabase(this.nativeExecutor, mongodb.host, mongodb.port, mongodb.database, AlwaysOnlineConfig.exact(mongodb.username), AlwaysOnlineConfig.exact(mongodb.password), AlwaysOnlineConfig.exact(mongodb.connectionString));
 			} catch (Exception e) {
 				this.nativeExecutor.log(Level.WARNING, "Failed to load the MongoDB database, falling back to file database.");
 				e.printStackTrace();

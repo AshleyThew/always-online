@@ -32,11 +32,13 @@ Works with: **Bungeecord, Velocity, Spigot, Paper, Bukkit, Sponge**
 
 ### Configuration
 
-Settings live in `config.yml`, generated on first run with every option and a description above it.
+Settings live in `config.yml`, generated on first run with every option in it and comments describing them.
 
 **Upgrading from 6.3.x or earlier?** Nothing to do. The old flat `config.properties` is read once, every value is carried into `config.yml`, and the old file is renamed to `config.properties.old`. Anything in it that this version no longer uses is named in the startup log rather than silently dropped.
 
-From then on, each start tops your `config.yml` up with options added in newer releases, using their defaults, and leaves the values you have already set alone. You never need to delete the config to pick up new settings. Keys the plugin does not recognise are kept at the bottom of the file, and an option written with no value falls back to its default.
+From then on, each start tops your `config.yml` up with options added in newer releases, using their defaults, and leaves the values you have already set alone. You never need to delete the config to pick up new settings. Keys the plugin does not recognise are kept, and an option written with no value falls back to its default.
+
+If a `config.yml` cannot be read at all - the one much older builds used, or one edited into an unparseable state - it is moved to `config.yml.unreadable` and a fresh one generated, so a broken config never stops the plugin protecting your server.
 
 The plugin supports multiple storage backends for player authentication data. Choose the option that best fits your server setup:
 
@@ -99,6 +101,7 @@ storage:
     database: minecraft
     username: ''
     password: ''
+    # Appended to the generated mongodb:// URI, for connection options
     connection-string: ''
 ```
 
@@ -151,12 +154,15 @@ storage:
     password: your_password
 ```
 
-Connection string. When set, it is used instead of host, port, username and password:
+Connection options. Whatever you put here is appended to the generated `mongodb://` URI, so it is for tuning the connection rather than replacing it - `host`, `port` and the credentials above still apply:
 
 ```yaml
 storage:
   mongodb:
     enabled: true
+    host: your-mongo-server.com
+    port: 27017
+    database: minecraft
     connection-string: '?ssl=true&authSource=admin'
 ```
 

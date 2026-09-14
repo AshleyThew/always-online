@@ -29,7 +29,7 @@ public class CheckMethods {
 		// Mojang occasionally answers with a plain-text error page (rate limits, CDN outages); Gson
 		// reads that as a bare string and throws, which would escape the scheduled check. Treat
 		// anything that is not a JSON object as the session server being unavailable.
-		if (!serverResponse.startsWith("{")) return false;
+		if (!serverResponse.trim().startsWith("{")) return false;
 		Type type = new TypeToken<Map<String, Object>>() {
 		}.getType();
 		Map<String, String> data;

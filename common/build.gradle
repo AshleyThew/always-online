@@ -15,7 +15,7 @@ dependencies {
     compileOnly 'com.google.code.gson:gson:2.10.1'
 
     // Bundled into the output jars by the implementation and sponge shadow tasks.
-    api 'com.github.AshleyThew:AnnotateConfig:v1.0.2-alpha'
+    api 'com.github.AshleyThew:AnnotateConfig:v1.0.3-alpha'
 
     compileOnly 'com.google.guava:guava:31.1-jre'
 }
