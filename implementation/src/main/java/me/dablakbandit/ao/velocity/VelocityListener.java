@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.player.GameProfileRequestEvent;
 import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.util.GameProfile;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.proxy.ProxyListener;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -21,6 +22,8 @@ public class VelocityListener extends ProxyListener {
 	public VelocityListener(VelocityLoader velocityLoader) {
 		super(velocityLoader);
 		this.velocityLoader = velocityLoader;
+		String motd = velocityLoader.alwaysOnline.config.messages.motdOffline;
+		this.MOTD = AlwaysOnlineConfig.disabled(motd) ? null : motd;
 	}
 
 	private void debug(String message) {
@@ -37,7 +40,7 @@ public class VelocityListener extends ProxyListener {
 			// Verify if the name attempting to connect is even verified
 			if (!this.validate(event.getUsername())) {
 				debug("Invalid username rejected at pre-login: " + event.getUsername());
-				event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.getProperty("message-kick-invalid", "Invalid username. Hacking?"))));
+				event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.messages.kickInvalid)));
 				return;
 
 			}
@@ -48,7 +51,7 @@ public class VelocityListener extends ProxyListener {
 			debug("PreLogin IP check for " + event.getUsername() + ": current=" + ip + ", last=" + lastip);
 
 			if (lastip == null) {// If null the player connecting is new
-				event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.getProperty("message-kick-new", "We can not let you join because the mojang servers are offline!"))));
+				event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.messages.kickNew)));
 				this.velocityLoader.getLogger().info("Denied " + event.getUsername() + " from logging in cause their ip [" + ip + "] has never connected to this server before!");
 			} else {
 				if (ip.equals(lastip)) {// If it matches set handler to offline mode, so it does not authenticate player
@@ -60,7 +63,7 @@ public class VelocityListener extends ProxyListener {
 				} else {// Deny the player from joining
 					this.velocityLoader.getLogger().info("Denied " + event.getUsername() + " from logging in cause their ip [" + ip + "] does not match their last ip!");
 					// handler.setOnlineMode(true);
-					event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.getProperty("message-kick-ip", "We can not let you join since you are not on the same computer you logged on before!"))));
+					event.setResult(PreLoginEvent.PreLoginComponentResult.denied(LegacyComponentSerializer.legacy('&').deserialize(this.velocityLoader.alwaysOnline.config.messages.kickIp)));
 				}
 			}
 		}

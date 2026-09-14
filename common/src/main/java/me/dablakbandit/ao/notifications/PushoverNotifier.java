@@ -1,19 +1,19 @@
 package me.dablakbandit.ao.notifications;
 
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
-import java.util.Properties;
 
 public class PushoverNotifier extends AbstractStatusNotifier {
 
 	private final String token;
 	private final String user;
 
-	public PushoverNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public PushoverNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		super(nativeExecutor, config);
-		this.token = config.getProperty("pushover-token", "").trim();
-		this.user = config.getProperty("pushover-user", "").trim();
+		this.token = AlwaysOnlineConfig.text(config.pushover.token);
+		this.user = AlwaysOnlineConfig.text(config.pushover.user);
 	}
 
 	@Override

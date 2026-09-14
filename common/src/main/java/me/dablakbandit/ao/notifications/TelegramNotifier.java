@@ -2,11 +2,11 @@ package me.dablakbandit.ao.notifications;
 
 import com.google.gson.Gson;
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class TelegramNotifier extends AbstractStatusNotifier {
 
@@ -14,10 +14,10 @@ public class TelegramNotifier extends AbstractStatusNotifier {
 	private final String botToken;
 	private final String chatId;
 
-	public TelegramNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public TelegramNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		super(nativeExecutor, config);
-		this.botToken = config.getProperty("telegram-bot-token", "").trim();
-		this.chatId = config.getProperty("telegram-chat-id", "").trim();
+		this.botToken = AlwaysOnlineConfig.text(config.telegram.botToken);
+		this.chatId = AlwaysOnlineConfig.text(config.telegram.chatId);
 	}
 
 	@Override

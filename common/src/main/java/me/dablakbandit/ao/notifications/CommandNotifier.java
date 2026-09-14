@@ -1,8 +1,8 @@
 package me.dablakbandit.ao.notifications;
 
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
-import java.util.Properties;
 import java.util.logging.Level;
 
 public class CommandNotifier implements StatusNotifier {
@@ -10,10 +10,10 @@ public class CommandNotifier implements StatusNotifier {
 	private final NativeExecutor nativeExecutor;
 	private final String commandOffline, commandOnline;
 
-	public CommandNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public CommandNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		this.nativeExecutor = nativeExecutor;
-		this.commandOffline = config.getProperty("notify-command-offline", "").trim();
-		this.commandOnline = config.getProperty("notify-command-online", "").trim();
+		this.commandOffline = AlwaysOnlineConfig.text(config.commands.offline);
+		this.commandOnline = AlwaysOnlineConfig.text(config.commands.online);
 	}
 
 	@Override

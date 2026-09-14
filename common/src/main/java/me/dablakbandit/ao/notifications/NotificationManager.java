@@ -1,17 +1,17 @@
 package me.dablakbandit.ao.notifications;
 
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.logging.Level;
 
 public class NotificationManager {
 
 	private final List<StatusNotifier> notifiers = new ArrayList<>();
 
-	public NotificationManager(NativeExecutor nativeExecutor, Properties config) {
+	public NotificationManager(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		this.register(new DiscordWebhookNotifier(nativeExecutor, config));
 		this.register(new GenericWebhookNotifier(nativeExecutor, config));
 		this.register(new TelegramNotifier(nativeExecutor, config));

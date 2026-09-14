@@ -2,21 +2,21 @@ package me.dablakbandit.ao.notifications;
 
 import com.google.gson.Gson;
 import me.dablakbandit.ao.NativeExecutor;
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class GenericWebhookNotifier extends AbstractStatusNotifier {
 
 	private final Gson gson = new Gson();
 	private final String webhookUrl;
 
-	public GenericWebhookNotifier(NativeExecutor nativeExecutor, Properties config) {
+	public GenericWebhookNotifier(NativeExecutor nativeExecutor, AlwaysOnlineConfig.Notifications config) {
 		super(nativeExecutor, config);
-		this.webhookUrl = config.getProperty("notify-webhook-url", "").trim();
+		this.webhookUrl = AlwaysOnlineConfig.text(config.webhook.url);
 	}
 
 	@Override

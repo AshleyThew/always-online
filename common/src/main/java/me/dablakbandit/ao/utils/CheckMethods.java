@@ -1,6 +1,7 @@
 package me.dablakbandit.ao.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import me.dablakbandit.ao.hybrid.IAlwaysOnline;
 
@@ -25,10 +26,19 @@ public class CheckMethods {
 		} catch (IOException | URISyntaxException e) {
 			return false;
 		}
+		// Mojang occasionally answers with a plain-text error page (rate limits, CDN outages); Gson
+		// reads that as a bare string and throws, which would escape the scheduled check. Treat
+		// anything that is not a JSON object as the session server being unavailable.
+		if (!serverResponse.startsWith("{")) return false;
 		Type type = new TypeToken<Map<String, Object>>() {
 		}.getType();
-		Map<String, String> data = gson.fromJson(serverResponse, type);
-		if (!data.containsKey("id")) {
+		Map<String, String> data;
+		try {
+			data = gson.fromJson(serverResponse, type);
+		} catch (JsonSyntaxException e) {
+			return false;
+		}
+		if (data == null || !data.containsKey("id")) {
 			return false;
 		}
 		return "069a79f444e94726a5befca90e38aaf5".equals(data.get("id"));

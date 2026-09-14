@@ -1,5 +1,6 @@
 package me.dablakbandit.ao.sponge;
 
+import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.proxy.ProxyListener;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -20,7 +21,8 @@ public class SpongeListener extends ProxyListener {
 	public SpongeListener(SpongeLoader spongeLoader) {
 		super(spongeLoader);
 		this.spongeLoader = spongeLoader;
-		this.MOTD = LegacyComponentSerializer.legacyAmpersand().deserialize(this.spongeLoader.getAOInstance().config.getProperty("message-motd-offline", "&eMojang servers are down,\n&ebut you can still connect!"));
+		String motd = this.spongeLoader.getAOInstance().config.messages.motdOffline;
+		this.MOTD = AlwaysOnlineConfig.disabled(motd) ? null : LegacyComponentSerializer.legacyAmpersand().deserialize(motd);
 	}
 
 	@Listener
@@ -38,7 +40,7 @@ public class SpongeListener extends ProxyListener {
 
 	@Listener(order = Order.LATE)
 	public void onClientPing(ClientPingServerEvent event) {
-		if (spongeLoader.getAOInstance().getOfflineMode()) {
+		if (spongeLoader.getAOInstance().getOfflineMode() && this.MOTD != null) {
 			event.response().setDescription(this.MOTD);
 		}
 	}
