@@ -6,7 +6,6 @@ import me.dablakbandit.annotateconfig.annotation.ConfigIgnore;
 import me.dablakbandit.annotateconfig.annotation.ConfigRoot;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -229,18 +228,24 @@ public class AlwaysOnlineConfig {
 	}
 
 	/**
-	 * Undoes the encoding damage 6.4.0 did while importing config.properties, in every message and
-	 * notification string, and returns how many values changed. That release read the file as
-	 * ISO-8859-1, so each non-ASCII UTF-8 character became several wrong ones, which were then
-	 * saved into config.yml. Database settings are left alone: a password is not prose, and
-	 * guessing at its intended characters is not safe.
+	 * Undoes the encoding damage 6.4.0 did while importing config.properties and returns how many
+	 * values changed. That release read the file as ISO-8859-1, so each non-ASCII UTF-8 character
+	 * became several wrong ones, which were then saved into config.yml.
+	 *
+	 * <p>Only the human-readable messages are touched, named one by one below. Everything else a
+	 * server owner types - webhook URLs, tokens, chat ids, usernames, console commands, database
+	 * settings - is left exactly as it is: those are not prose, a wrong guess there breaks
+	 * something, and a value like that containing non-ASCII text is far likelier to be deliberate
+	 * than to be this damage.
 	 *
 	 * <p>Only call this for a config that went through the 6.4.0 import. The damage cannot be told
 	 * apart from text written that way on purpose, so running it on any other config could rewrite
 	 * something the owner meant.
 	 */
 	public int repairMisreadMessages() {
-		return repairStrings(this.messages) + repairStrings(this.notifications);
+		return repair(this.messages, "motdOffline", "kickIp", "kickNew", "kickInvalid", "mojangOffline", "mojangOnline")
+				+ repair(this.notifications, "messageOffline", "messageOnline")
+				+ repair(this.notifications.discord, "messageOffline", "messageOnline");
 	}
 
 	/**
@@ -270,23 +275,20 @@ public class AlwaysOnlineConfig {
 		}
 	}
 
-	private static int repairStrings(Object section) {
+	/** Repairs exactly the named String fields of {@code owner}; the names are the allow-list. */
+	private static int repair(Object owner, String... fieldNames) {
 		int changed = 0;
-		for (Field field : section.getClass().getFields()) {
-			if (Modifier.isStatic(field.getModifiers())) continue;
+		for (String name : fieldNames) {
 			try {
-				Object value = field.get(section);
-				if (field.getType() == String.class) {
-					String fixed = repairMisreadText((String) value);
-					if (fixed != null && !fixed.equals(value)) {
-						field.set(section, fixed);
-						changed++;
-					}
-				} else if (value != null && field.getType().getEnclosingClass() == Notifications.class) {
-					changed += repairStrings(value);
+				Field field = owner.getClass().getField(name);
+				String value = (String) field.get(owner);
+				String fixed = repairMisreadText(value);
+				if (fixed != null && !fixed.equals(value)) {
+					field.set(owner, fixed);
+					changed++;
 				}
-			} catch (IllegalAccessException e) {
-				throw new IllegalStateException(e);
+			} catch (ReflectiveOperationException e) {
+				throw new IllegalStateException("No message field " + name + " on " + owner.getClass().getSimpleName(), e);
 			}
 		}
 		return changed;
