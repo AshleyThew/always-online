@@ -234,6 +234,10 @@ public class AlwaysOnlineConfig {
 	 * ISO-8859-1, so each non-ASCII UTF-8 character became several wrong ones, which were then
 	 * saved into config.yml. Database settings are left alone: a password is not prose, and
 	 * guessing at its intended characters is not safe.
+	 *
+	 * <p>Only call this for a config that went through the 6.4.0 import. The damage cannot be told
+	 * apart from text written that way on purpose, so running it on any other config could rewrite
+	 * something the owner meant.
 	 */
 	public int repairMisreadMessages() {
 		return repairStrings(this.messages) + repairStrings(this.notifications);

@@ -94,8 +94,10 @@ public final class LegacyPropertiesImporter {
 	}
 
 	/**
-	 * Copies the values in {@code propertiesFile} onto {@code config}. Read the same way the old
-	 * plugin read it, so the values arrive exactly as that version used them.
+	 * Copies the values in {@code propertiesFile} onto {@code config}. The file is decoded as UTF-8
+	 * when its bytes are valid UTF-8, and as ISO-8859-1 otherwise, which is what Properties has
+	 * always assumed. That differs from the old plugin on purpose: it read raw UTF-8 characters as
+	 * several wrong ones. ASCII and backslash-u escapes come through identically either way.
 	 */
 	public static Result importInto(AlwaysOnlineConfig config, Path propertiesFile) throws IOException {
 		// Server owners save this file from ordinary editors, so decorative characters such as the
