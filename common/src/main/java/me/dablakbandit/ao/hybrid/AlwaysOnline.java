@@ -2,6 +2,7 @@ package me.dablakbandit.ao.hybrid;
 
 import com.google.gson.Gson;
 import me.dablakbandit.annotateconfig.AnnotateConfig;
+import me.dablakbandit.annotateconfig.ConfigHandle;
 import me.dablakbandit.ao.NativeExecutor;
 import me.dablakbandit.ao.config.AlwaysOnlineConfig;
 import me.dablakbandit.ao.config.LegacyPropertiesImporter;
@@ -27,6 +28,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 	private boolean MOJANG_OFFLINE_MODE = false, CHECK_SESSION_STATUS = true, DEBUG = false;
 
 	private static final String UNREADABLE_FILE = "config.yml.unreadable";
+	private static final String ENCODING_CHECKED_FILE = ".config-encoding-checked";
 
 	public Database database = null;
 	public AlwaysOnlineConfig config = new AlwaysOnlineConfig();
@@ -79,19 +81,40 @@ public class AlwaysOnline implements IAlwaysOnline {
 			// A file this version cannot read - the config.yml much older builds used, or one edited
 			// into an unparseable state - is moved aside and replaced rather than taken as a reason
 			// to stop, since a server with no AlwaysOnline is exactly what this plugin exists to avoid.
+			ConfigHandle handle;
 			try {
-				AnnotateConfig.builder(this.config, configFile).build().load();
+				handle = AnnotateConfig.builder(this.config, configFile).build();
+				handle.load();
 			} catch (IOException | RuntimeException broken) {
 				Path aside = dataFolder.resolve(UNREADABLE_FILE);
 				Files.move(configFile, aside, StandardCopyOption.REPLACE_EXISTING);
 				this.nativeExecutor.log(Level.WARNING, "config.yml could not be read (" + broken + "). It has been moved to " + UNREADABLE_FILE + " and a fresh one generated with the default settings. Copy anything you need back across, then run /alwaysonline reload.");
 				this.config = new AlwaysOnlineConfig();
-				AnnotateConfig.builder(this.config, configFile).build().load();
+				handle = AnnotateConfig.builder(this.config, configFile).build();
+				handle.load();
 			}
 			this.config.applyRequiredDefaults();
 
+			// 6.4.0 imported config.properties with the wrong character encoding, so decorative
+			// characters in messages were saved garbled. The repair cannot tell that damage apart from
+			// text someone typed on purpose, so it must not run on configs that were never exposed to
+			// it. Only a 6.4.0 import can have caused it: that left config.properties.old behind, and
+			// nothing has recorded the check yet. It runs once, and an import done by this version is
+			// already correct, so that path records the check without repairing anything.
+			Path renamedFile = dataFolder.resolve(LegacyPropertiesImporter.RENAMED_FILE);
+			Path encodingChecked = dataFolder.resolve(ENCODING_CHECKED_FILE);
+			if (imported == null && Files.exists(renamedFile) && Files.notExists(encodingChecked)) {
+				int repaired = this.config.repairMisreadMessages();
+				if (repaired > 0) {
+					handle.save();
+					this.nativeExecutor.log(Level.INFO, "Repaired " + repaired + " message(s) in config.yml that 6.4.0 imported with the wrong character encoding.");
+				}
+				recordEncodingChecked(encodingChecked);
+			}
+
 			if (imported != null) {
-				Files.move(legacyFile, dataFolder.resolve(LegacyPropertiesImporter.RENAMED_FILE), StandardCopyOption.REPLACE_EXISTING);
+				Files.move(legacyFile, renamedFile, StandardCopyOption.REPLACE_EXISTING);
+				recordEncodingChecked(encodingChecked);
 				this.nativeExecutor.log(Level.INFO, "Imported " + imported.imported.size() + " setting(s) from " + LegacyPropertiesImporter.LEGACY_FILE + " into config.yml. The old file was renamed to " + LegacyPropertiesImporter.RENAMED_FILE + ".");
 				for (String warning : imported.warnings) {
 					this.nativeExecutor.log(Level.WARNING, warning);
@@ -159,6 +182,16 @@ public class AlwaysOnline implements IAlwaysOnline {
 
 		this.nativeExecutor.notifyOfflineMode(MOJANG_OFFLINE_MODE);
 		UpdateChecker.getInstance().start(nativeExecutor);
+	}
+
+	private void recordEncodingChecked(Path marker) {
+		try {
+			Files.write(marker, ("AlwaysOnline has checked config.yml for the character encoding problem in the 6.4.0 config.properties import.\n"
+					+ "Delete this file to run that check again on the next start.\n").getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			// Not being able to record it only means the check may run again; not worth stopping for.
+			this.nativeExecutor.log(Level.WARNING, "Could not write " + marker.getFileName() + ", so the config encoding check may run again next start. [" + e.getMessage() + "]");
+		}
 	}
 
 	public void saveState() {

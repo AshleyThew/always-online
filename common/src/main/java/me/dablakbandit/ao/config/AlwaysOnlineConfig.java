@@ -5,6 +5,12 @@ import me.dablakbandit.annotateconfig.annotation.ConfigComment;
 import me.dablakbandit.annotateconfig.annotation.ConfigIgnore;
 import me.dablakbandit.annotateconfig.annotation.ConfigRoot;
 
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+
 /**
  * The config.yml schema. AnnotateConfig generates the file from these fields and comments, and on
  * every load rewrites it so options added in newer versions appear with their defaults while the
@@ -219,6 +225,73 @@ public class AlwaysOnlineConfig {
 		if (this.storage.mysql.password == null) this.storage.mysql.password = defaults.storage.mysql.password;
 		if (this.storage.mongodb.host == null) this.storage.mongodb.host = defaults.storage.mongodb.host;
 		if (this.storage.mongodb.database == null) this.storage.mongodb.database = defaults.storage.mongodb.database;
+	}
+
+	/**
+	 * Undoes the encoding damage 6.4.0 did while importing config.properties and returns how many
+	 * values changed. That release read the file as ISO-8859-1, so each non-ASCII UTF-8 character
+	 * became several wrong ones, which were then saved into config.yml.
+	 *
+	 * <p>Only the human-readable messages are touched, named one by one below. Everything else a
+	 * server owner types - webhook URLs, tokens, chat ids, usernames, console commands, database
+	 * settings - is left exactly as it is: those are not prose, a wrong guess there breaks
+	 * something, and a value like that containing non-ASCII text is far likelier to be deliberate
+	 * than to be this damage.
+	 *
+	 * <p>Only call this for a config that went through the 6.4.0 import. The damage cannot be told
+	 * apart from text written that way on purpose, so running it on any other config could rewrite
+	 * something the owner meant.
+	 */
+	public int repairMisreadMessages() {
+		return repair(this.messages, "motdOffline", "kickIp", "kickNew", "kickInvalid", "mojangOffline", "mojangOnline")
+				+ repair(this.notifications, "messageOffline", "messageOnline")
+				+ repair(this.notifications.discord, "messageOffline", "messageOnline");
+	}
+
+	/**
+	 * Text that was UTF-8 but got decoded as ISO-8859-1 contains only characters up to U+00FF, and
+	 * re-encoding it as ISO-8859-1 gives back the original bytes. When those bytes are valid UTF-8,
+	 * that decoding is what the text meant. Anything with a character above U+00FF, or whose bytes
+	 * are not valid UTF-8, was not damaged this way and is returned untouched - so a genuine
+	 * Latin-1 accent such as a lone e-acute is left as it is.
+	 */
+	static String repairMisreadText(String value) {
+		if (value == null) return null;
+		boolean highLatin1 = false;
+		for (int i = 0; i < value.length(); i++) {
+			char c = value.charAt(i);
+			if (c > 0xFF) return value;
+			if (c >= 0x80) highLatin1 = true;
+		}
+		if (!highLatin1) return value;
+		try {
+			return StandardCharsets.UTF_8.newDecoder()
+					.onMalformedInput(CodingErrorAction.REPORT)
+					.onUnmappableCharacter(CodingErrorAction.REPORT)
+					.decode(ByteBuffer.wrap(value.getBytes(StandardCharsets.ISO_8859_1)))
+					.toString();
+		} catch (CharacterCodingException notMisread) {
+			return value;
+		}
+	}
+
+	/** Repairs exactly the named String fields of {@code owner}; the names are the allow-list. */
+	private static int repair(Object owner, String... fieldNames) {
+		int changed = 0;
+		for (String name : fieldNames) {
+			try {
+				Field field = owner.getClass().getField(name);
+				String value = (String) field.get(owner);
+				String fixed = repairMisreadText(value);
+				if (fixed != null && !fixed.equals(value)) {
+					field.set(owner, fixed);
+					changed++;
+				}
+			} catch (ReflectiveOperationException e) {
+				throw new IllegalStateException("No message field " + name + " on " + owner.getClass().getSimpleName(), e);
+			}
+		}
+		return changed;
 	}
 
 	/** True for a message the user has switched off: missing, empty, or the word null. */
