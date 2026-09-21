@@ -4,7 +4,9 @@ plugins {
 
 dependencies {
     implementation project(':common')
-    compileOnly 'org.spigotmc:spigot:26.1.1-R0.1-SNAPSHOT'
+    // BuildTools may install a newer 26.1.x patch version than the local
+    // default; CI passes the installed version via -Pspigot_26_version.
+    compileOnly "org.spigotmc:spigot:${project.findProperty('spigot_26_version') ?: '26.1.1'}-R0.1-SNAPSHOT"
 }
 
 jar {
