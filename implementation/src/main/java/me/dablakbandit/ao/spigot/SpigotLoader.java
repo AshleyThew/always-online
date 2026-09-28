@@ -40,7 +40,7 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 		try {
 			this.getLogger().info("Setting up NMS authentication service...");
 			NMSAuthSetup.setUp(this);
-		} catch (Exception e) {
+		} catch (Exception | LinkageError e) {
 			e.printStackTrace();
 			this.getLogger().severe("Failed to override the authentication handler. Due to possible security risks, the server will now shut down.");
 			this.getLogger().severe("If this issue persists, please contact the author (" + this.getDescription().getAuthors() + ") and remove " + this.getDescription().getName() + " from your server temporarily.");

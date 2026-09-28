@@ -8,6 +8,7 @@ import me.dablakbandit.ao.spigot.SpigotLoader;
 import me.dablakbandit.ao.utils.NMSUtils;
 
 import java.lang.reflect.Method;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 
 public class NMSAuthSetup {
@@ -23,15 +24,15 @@ public class NMSAuthSetup {
 
 	public static void setUp(SpigotLoader spigotLoader) throws Exception {
 		activeHook = HookType.NONE;
-		if (Check_1_14.valid()) {
+		if (isValid(Check_1_14::valid)) {
 			spigotLoader.log(Level.INFO, "Attempting setup ~1_14 Auth service");
 			Check_1_14.setup(spigotLoader.getAOInstance());
 			activeHook = HookType.V1_14;
-		} else if (Check_1_16_4.valid()) {
+		} else if (isValid(Check_1_16_4::valid)) {
 			spigotLoader.log(Level.INFO, "Attempting setup ~1_16 Auth service");
 			Check_1_16_4.setup(spigotLoader.getAOInstance());
 			activeHook = HookType.V1_16_4;
-		} else if (Check_26_1.valid()) {
+		} else if (isValid(Check_26_1::valid)) {
 			spigotLoader.log(Level.INFO, "Attempting setup 26.1+ Auth service");
 			Check_26_1.setup(spigotLoader.getAOInstance());
 			activeHook = HookType.V26_1;
@@ -39,6 +40,17 @@ public class NMSAuthSetup {
 			spigotLoader.log(Level.INFO, "Attempting setup 1.20+ Auth service");
 			Check_1_20_2.setup(spigotLoader.getAOInstance());
 			activeHook = HookType.V1_20_2;
+		}
+	}
+
+	// A hook built against an older authlib fails to link on newer servers (authlib 10, Paper 26.3+,
+	// renamed MinecraftSessionService), which surfaces as a NoClassDefFoundError from its static
+	// initializer rather than a false result, so treat that as "not this version" and move on.
+	private static boolean isValid(BooleanSupplier check) {
+		try {
+			return check.getAsBoolean();
+		} catch (LinkageError e) {
+			return false;
 		}
 	}
 
@@ -83,4 +95,4 @@ public class NMSAuthSetup {
 		}
 	}
 
-}
+}
