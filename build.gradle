@@ -4,7 +4,7 @@ plugins {
 }
 
 ext {
-    plVersion = '6.4.1'
+    plVersion = '6.4.2'
 }
 
 allprojects {
