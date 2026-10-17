@@ -30,6 +30,9 @@ subprojects {
     java {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        // compileOnly server/library jars may declare newer JVM requirements
+        // in their module metadata; don't let that fail resolution.
+        disableAutoTargetJvm()
     }
 
     compileJava {

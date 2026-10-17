@@ -16,11 +16,110 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8
+      - name: Set up JDKs
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
           distribution: 'temurin'
+          java-version: |
+            8
+            17
+            25
+            21
+          cache: 'gradle'
+
+      - name: Restore NMS dependencies cache
+        id: nms-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2/repository/org/spigotmc
+            ~/.m2/repository/net/md-5
+          key: nms-deps-spigot-1.14-1.16.4-1.20.2-26.1.1-bungee-1.20-R0.3
+
+      # The org.spigotmc:spigot server jars are not published anywhere and
+      # must be produced by Spigot BuildTools into the local maven repository.
+      - name: Build Spigot NMS jars with BuildTools
+        run: |
+          mkdir -p "$HOME/buildtools"
+          cd "$HOME/buildtools"
+          build_rev() {
+            rev="$1"; jhome="$2"; check="${3:-$rev}"
+            if ls "$HOME"/.m2/repository/org/spigotmc/spigot/${check}-R0.1-SNAPSHOT/spigot-*.jar >/dev/null 2>&1; then
+              echo "Spigot $check already in local repository, skipping"
+              return 0
+            fi
+            if [ ! -f BuildTools.jar ]; then
+              curl -sSLo BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+            fi
+            mkdir -p "$rev"
+            (cd "$rev" && JAVA_HOME="$jhome" "$jhome/bin/java" -jar ../BuildTools.jar --rev "$rev")
+          }
+          build_rev 1.14 "$JAVA_HOME_8_X64"
+          build_rev 1.16.4 "$JAVA_HOME_8_X64"
+          build_rev 1.20.2 "$JAVA_HOME_17_X64"
+          # BuildTools can install a newer 26.1.x patch version for this rev
+          # (e.g. --rev 26.1.1 installs spigot-26.1.2-R0.1-SNAPSHOT), so skip
+          # on any 26.1.x artifact; the Gradle step detects the exact version.
+          build_rev 26.1.1 "$JAVA_HOME_21_X64" '26.1.*' || build_rev 26.1.1 "$JAVA_HOME_25_X64" '26.1.*'
+
+      # net.md-5:bungeecord-proxy snapshots are no longer published
+      # (oss.sonatype.org was decommissioned), so build it from source.
+      - name: Build BungeeCord proxy dependency
+        run: |
+          if ls "$HOME/.m2/repository/net/md-5/bungeecord-proxy/1.20-R0.3-SNAPSHOT/"*.jar >/dev/null 2>&1; then
+            echo "bungeecord-proxy already in local repository, skipping"
+            exit 0
+          fi
+          git clone https://github.com/SpigotMC/BungeeCord.git "$HOME/BungeeCord"
+          cd "$HOME/BungeeCord"
+          rev=$(git log --format=%H -S '<version>1.20-R0.3-SNAPSHOT</version>' -- pom.xml | tail -1)
+          echo "Checking out $rev"
+          git checkout "$rev"
+          JAVA_HOME="$JAVA_HOME_17_X64" mvn -B -q install -DskipTests -pl proxy -am
+
+      # Save the cache before the Gradle build so the ~10 minute BuildTools
+      # output is kept even when compilation fails.
+      - name: Save NMS dependencies cache
+        if: steps.nms-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2/repository/org/spigotmc
+            ~/.m2/repository/net/md-5
+          key: nms-deps-spigot-1.14-1.16.4-1.20.2-26.1.1-bungee-1.20-R0.3
+
+      # The spigot 26.1.x jar uses a bundler layout with the server classes in
+      # nested jars, which javac cannot compile against; flatten it in place.
+      - name: Flatten spigot 26.1.x jar for compilation
+        run: |
+          dir=$(ls -d "$HOME"/.m2/repository/org/spigotmc/spigot/26.1.*-R0.1-SNAPSHOT | sort -V | tail -1)
+          ver=$(basename "$dir"); ver=${ver%-R0.1-SNAPSHOT}
+          jar="$dir/spigot-$ver-R0.1-SNAPSHOT.jar"
+          if unzip -l "$jar" | grep -q "net/minecraft/network/Connection.class"; then
+            echo "Server classes present at jar root; nothing to do"
+            exit 0
+          fi
+          echo "Server classes not at jar root; flattening nested jars"
+          tmp=$(mktemp -d); flat=$(mktemp -d)
+          (cd "$tmp" && unzip -q "$jar")
+          find "$tmp" -name '*.jar' | while read -r nested; do
+            echo "  merging $(basename "$nested")"
+            (cd "$flat" && unzip -qon "$nested" -x 'META-INF/*') || true
+          done
+          cp -rn "$tmp"/* "$flat"/ 2>/dev/null || true
+          (cd "$flat" && jar cf "$jar" .)
+          unzip -l "$jar" | grep -q "net/minecraft/network/Connection.class" && echo "Flattened jar contains server classes"
+
+      # Spigot 26.1.x classes are compiled for Java 25, so the Gradle JVM
+      # (which also runs javac) must be at least that.
+      - name: Build with Gradle
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_X64"
+          spigot26=$(basename "$(ls -d "$HOME"/.m2/repository/org/spigotmc/spigot/26.1.*-R0.1-SNAPSHOT | sort -V | tail -1)")
+          spigot26=${spigot26%-R0.1-SNAPSHOT}
+          echo "Using spigot $spigot26 for the 26_1_plus module"
+          chmod +x gradlew
+          ./gradlew build --no-daemon --no-configuration-cache -Pspigot_26_version="$spigot26"
 
       - name: Extract version from build.gradle
         id: get_version
