@@ -3,7 +3,7 @@ package me.dablakbandit.ao.databases;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.UpdateOptions;
 import me.dablakbandit.ao.NativeExecutor;
 import org.bson.Document;
 
@@ -108,7 +108,7 @@ public class MongoDatabase implements Database {
 					String ip = result.getString("ip");
 					String uuidString = result.getString("uuid");
 					if (ip != null && uuidString != null) {
-						playerData = new PlayerData(ip, UUID.fromString(uuidString));
+						playerData = new PlayerData(ip, UUID.fromString(uuidString), Skin.of(result.getString("skinValue"), result.getString("skinSignature")));
 					}
 				}
 			} catch (Exception e) {
@@ -136,19 +136,45 @@ public class MongoDatabase implements Database {
 	}
 
 	@Override
-	public void updatePlayer(String username, String ip, UUID uuid) {
-		this.cache.put(username, new PlayerData(ip, uuid));
+	public Skin getSkin(String username) {
+		PlayerData playerData = this.cache.get(username);
+		if (playerData == null && this.loadDataFromMongo(username)) playerData = this.cache.get(username);
+		return playerData == null ? null : playerData.skin;
+	}
+
+	@Override
+	public String describe() {
+		return "MongoDB (" + this.host + ":" + this.port + "/" + this.databaseName + (this.collection == null ? ", not connected" : "") + ")";
+	}
+
+	@Override
+	public void updatePlayer(String username, String ip, UUID uuid, Skin skin) {
+		PlayerData previous = this.cache.get(username);
+		boolean samePlayer = previous == null || previous.uuid.equals(uuid);
+		Skin kept = skin != null ? skin : (previous != null && samePlayer ? previous.skin : null);
+		this.cache.put(username, new PlayerData(ip, uuid, kept));
 		if (this.collection != null) {
 			try {
-				Document filter = new Document("name", username);
-				Document update = new Document("name", username).append("ip", ip).append("uuid", uuid.toString());
-
-				ReplaceOptions options = new ReplaceOptions().upsert(true);
-				this.collection.replaceOne(filter, update, options);
+				this.collection.updateOne(new Document("name", username), this.updateFor(username, ip, uuid, skin, samePlayer), new UpdateOptions().upsert(true));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	/**
+	 * A null skin leaves the stored one alone (an update, not a replace, so it is not wiped), unless the name
+	 * now belongs to someone else.
+	 */
+	private Document updateFor(String username, String ip, UUID uuid, Skin skin, boolean samePlayer) {
+		Document set = new Document("name", username).append("ip", ip).append("uuid", uuid.toString());
+		Document update = new Document("$set", set);
+		if (skin != null) {
+			set.append("skinValue", skin.value).append("skinSignature", skin.signature);
+		} else if (!samePlayer) {
+			update.append("$unset", new Document("skinValue", "").append("skinSignature", ""));
+		}
+		return update;
 	}
 
 	@Override
@@ -159,11 +185,7 @@ public class MongoDatabase implements Database {
 				String username = entry.getKey();
 				PlayerData playerData = entry.getValue();
 
-				Document filter = new Document("name", username);
-				Document update = new Document("name", username).append("ip", playerData.ipAddress).append("uuid", playerData.uuid.toString());
-
-				ReplaceOptions options = new ReplaceOptions().upsert(true);
-				this.collection.replaceOne(filter, update, options);
+				this.collection.updateOne(new Document("name", username), this.updateFor(username, playerData.ipAddress, playerData.uuid, playerData.skin, true), new UpdateOptions().upsert(true));
 			}
 		}
 	}

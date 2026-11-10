@@ -1,6 +1,5 @@
 package me.dablakbandit.ao.hybrid;
 
-import com.google.gson.Gson;
 import me.dablakbandit.annotateconfig.AnnotateConfig;
 import me.dablakbandit.annotateconfig.ConfigHandle;
 import me.dablakbandit.ao.NativeExecutor;
@@ -25,7 +24,17 @@ import java.util.regex.Pattern;
 
 public class AlwaysOnline implements IAlwaysOnline {
 
-	private boolean MOJANG_OFFLINE_MODE = false, CHECK_SESSION_STATUS = true, DEBUG = false;
+	private volatile boolean MOJANG_OFFLINE_MODE = false, CHECK_SESSION_STATUS = true, DEBUG = false;
+	// Set by /alwaysonline toggle: the automatic checks stop changing the mode (they still send alerts)
+	// until the mode is toggled again.
+	private volatile boolean MANUAL_OVERRIDE = false;
+	// Bumped on every manual toggle, so the checks know a new hand-set mode started and compare against it.
+	private volatile int overrideGeneration = 0;
+	// True when the configured MySQL/MongoDB could not be reached and the file database is standing in.
+	private volatile String fallbackDatabase = null;
+	// The latest automatic check, for /alwaysonline status. 0 until the first one has run.
+	private volatile long lastCheckMillis = 0;
+	private volatile String lastCheckProblem = null;
 
 	private static final String UNREADABLE_FILE = "config.yml.unreadable";
 	private static final String ENCODING_CHECKED_FILE = ".config-encoding-checked";
@@ -129,11 +138,19 @@ public class AlwaysOnline implements IAlwaysOnline {
 			if (Files.isReadable(this.stateFile)) {
 				String data = new String(Files.readAllBytes(this.stateFile), StandardCharsets.UTF_8);
 				if (data.contains(":")) {
-					String[] d = data.split(Pattern.quote(":"));
+					String[] d = data.trim().split(Pattern.quote(":"));
 					CHECK_SESSION_STATUS = Boolean.parseBoolean(d[0]);
 					MOJANG_OFFLINE_MODE = Boolean.parseBoolean(d[1]);
+					MANUAL_OVERRIDE = d.length > 2 && Boolean.parseBoolean(d[2]);
+					if (MANUAL_OVERRIDE) {
+						this.nativeExecutor.log(Level.WARNING, "Mojang offline mode was set by hand with /alwaysonline toggle and is still " + (MOJANG_OFFLINE_MODE ? "on" : "off") + ". The automatic checks will only send alerts until it is toggled again.");
+					}
 					this.nativeExecutor.log(Level.INFO, "Successfully loaded previous state variables!");
 				}
+			}
+			if (!CHECK_SESSION_STATUS) {
+				// Saved by /alwaysonline disable, possibly long ago, and easy to forget.
+				this.nativeExecutor.log(Level.WARNING, "The automatic mojang checks are switched off (someone ran /alwaysonline disable). AlwaysOnline will not notice a mojang outage until you run /alwaysonline enable.");
 			}
 		} catch (IOException | RuntimeException e) {
 			e.printStackTrace();
@@ -151,6 +168,7 @@ public class AlwaysOnline implements IAlwaysOnline {
 		// Kill any existing threads or listeners in case of a re-load
 		this.nativeExecutor.cancelAllOurTasks();
 		this.nativeExecutor.unregisterAllListeners();
+		this.fallbackDatabase = null;
 		if (this.config.storage.mysql.enabled) {
 			this.nativeExecutor.log(Level.INFO, "Loading MySQL database...");
 			this.nativeExecutor.initMySQL();
@@ -158,8 +176,8 @@ public class AlwaysOnline implements IAlwaysOnline {
 				AlwaysOnlineConfig.Storage.Mysql mysql = this.config.storage.mysql;
 				this.database = new MySQLDatabase(this.nativeExecutor, mysql.host, mysql.port, mysql.database, mysql.username, mysql.password, AlwaysOnlineConfig.exact(mysql.extra));
 			} catch (SQLException e) {
-				this.nativeExecutor.log(Level.WARNING, "Failed to load the MySQL database, falling back to file database.");
 				e.printStackTrace();
+				this.useFallbackDatabase("MySQL", e);
 				this.database = new FileDatabase(dataFolder.resolve("playerData.txt"));
 			}
 		} else if (this.config.storage.mongodb.enabled) {
@@ -168,8 +186,8 @@ public class AlwaysOnline implements IAlwaysOnline {
 				AlwaysOnlineConfig.Storage.Mongodb mongodb = this.config.storage.mongodb;
 				this.database = new MongoDatabase(this.nativeExecutor, mongodb.host, mongodb.port, mongodb.database, AlwaysOnlineConfig.exact(mongodb.username), AlwaysOnlineConfig.exact(mongodb.password), AlwaysOnlineConfig.exact(mongodb.connectionString));
 			} catch (Exception e) {
-				this.nativeExecutor.log(Level.WARNING, "Failed to load the MongoDB database, falling back to file database.");
 				e.printStackTrace();
+				this.useFallbackDatabase("MongoDB", e);
 				this.database = new FileDatabase(dataFolder.resolve("playerData.txt"));
 			}
 		} else {
@@ -184,6 +202,26 @@ public class AlwaysOnline implements IAlwaysOnline {
 		UpdateChecker.getInstance().start(nativeExecutor);
 	}
 
+	private void useFallbackDatabase(String configured, Exception cause) {
+		this.fallbackDatabase = configured;
+		this.nativeExecutor.log(Level.SEVERE, "==================================================================");
+		this.nativeExecutor.log(Level.SEVERE, "Could not connect to the " + configured + " database (" + cause.getMessage() + ").");
+		this.nativeExecutor.log(Level.SEVERE, "AlwaysOnline is using the local file database (playerData.txt) instead.");
+		this.nativeExecutor.log(Level.SEVERE, "Players recorded in " + configured + " are NOT known to it, so if mojang goes down");
+		this.nativeExecutor.log(Level.SEVERE, "they will be refused as new players. Fix the connection and restart or reload.");
+		this.nativeExecutor.log(Level.SEVERE, "==================================================================");
+	}
+
+	/**
+	 * Repeats the fallback warning at the moment it starts to matter: when offline mode switches on.
+	 */
+	public void warnIfFallbackDatabase() {
+		String configured = this.fallbackDatabase;
+		if (configured != null) {
+			this.nativeExecutor.log(Level.SEVERE, "Offline mode is on but the " + configured + " database could not be reached at startup, so only players saved in the local file database can join until mojang is back.");
+		}
+	}
+
 	private void recordEncodingChecked(Path marker) {
 		try {
 			Files.write(marker, ("AlwaysOnline has checked config.yml for the character encoding problem in the 6.4.0 config.properties import.\n"
@@ -196,15 +234,19 @@ public class AlwaysOnline implements IAlwaysOnline {
 
 	public void saveState() {
 		try {
-			Files.write(this.stateFile, (CHECK_SESSION_STATUS + ":" + MOJANG_OFFLINE_MODE).getBytes(StandardCharsets.UTF_8));
+			Files.write(this.stateFile, (CHECK_SESSION_STATUS + ":" + MOJANG_OFFLINE_MODE + ":" + MANUAL_OVERRIDE).getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
 			this.nativeExecutor.log(Level.WARNING, "Failed to save state. This error can be safely ignored. [" + e.getMessage() + "]");
 		}
 	}
 
 	public void printDebugInformation() {
-		this.nativeExecutor.log(Level.INFO, "Session HEAD check: " + CheckMethods.directSessionServerStatus(this, new Gson()));
-		this.nativeExecutor.log(Level.INFO, "Mojang offline mode: " + MOJANG_OFFLINE_MODE);
+		String problem = CheckMethods.sessionServerProblem(this);
+		this.nativeExecutor.log(Level.INFO, "Session server login check: " + (problem == null ? "ok" : problem));
+		this.nativeExecutor.log(Level.INFO, "Mojang offline mode: " + MOJANG_OFFLINE_MODE + (MANUAL_OVERRIDE ? " (set by hand)" : ""));
+		if (this.fallbackDatabase != null) {
+			this.nativeExecutor.log(Level.WARNING, "Database: using the local file database because " + this.fallbackDatabase + " could not be reached");
+		}
 		this.nativeExecutor.log(Level.INFO, "Check status: " + CHECK_SESSION_STATUS);
 		this.DEBUG = !DEBUG;
 		if (DEBUG) {
@@ -216,9 +258,80 @@ public class AlwaysOnline implements IAlwaysOnline {
 		return database;
 	}
 
-	public void toggleOfflineMode() {
+	/**
+	 * The /alwaysonline toggle command. The first toggle flips the mode and holds it there, so the automatic
+	 * checks cannot undo it (they keep sending alerts); toggling again flips it back and hands control back
+	 * to the checks.
+	 */
+	public synchronized void toggleOfflineMode() {
+		MANUAL_OVERRIDE = !MANUAL_OVERRIDE;
+		overrideGeneration++;
 		MOJANG_OFFLINE_MODE = !MOJANG_OFFLINE_MODE;
 		this.nativeExecutor.notifyOfflineMode(MOJANG_OFFLINE_MODE);
+		this.saveState();
+	}
+
+	/**
+	 * Used by the automatic checks. Does nothing while the mode is set by hand.
+	 *
+	 * @return whether the mode changed
+	 */
+	public synchronized boolean setOfflineMode(boolean offline) {
+		if (MANUAL_OVERRIDE || MOJANG_OFFLINE_MODE == offline) return false;
+		MOJANG_OFFLINE_MODE = offline;
+		this.nativeExecutor.notifyOfflineMode(MOJANG_OFFLINE_MODE);
+		return true;
+	}
+
+	public void recordCheck(String problem) {
+		this.lastCheckProblem = problem;
+		this.lastCheckMillis = System.currentTimeMillis();
+	}
+
+	/**
+	 * The lines /alwaysonline status shows, with &amp; colour codes.
+	 */
+	public java.util.List<String> statusLines() {
+		java.util.List<String> lines = new java.util.ArrayList<>();
+		lines.add("&6AlwaysOnline " + this.nativeExecutor.getVersion() + " status");
+		lines.add("&7Mojang offline mode: " + (MOJANG_OFFLINE_MODE ? "&aon" : "&coff") + (MANUAL_OVERRIDE ? " &e(set by hand, run /alwaysonline toggle to hand it back to the checks)" : " &7(automatic)"));
+		if (CHECK_SESSION_STATUS) {
+			lines.add("&7Automatic checks: &aon&7, every " + Math.max(0, this.config.checkInterval) + "s");
+		} else {
+			lines.add("&7Automatic checks: &coff &7(run /alwaysonline enable, or outages will not be noticed)");
+		}
+		long last = this.lastCheckMillis;
+		if (last == 0) {
+			lines.add("&7Last check: &7not run yet");
+		} else {
+			String when = ((System.currentTimeMillis() - last) / 1000) + "s ago";
+			String problem = this.lastCheckProblem;
+			lines.add("&7Last check: " + (problem == null ? "&amojang answered normally" : "&c" + problem) + " &7(" + when + ")");
+		}
+		Database db = this.database;
+		lines.add("&7Database: &f" + (db == null ? "none" : db.describe()));
+		if (this.fallbackDatabase != null) {
+			lines.add("&c" + this.fallbackDatabase + " could not be reached at startup, so only players in the local file are known");
+		}
+		return lines;
+	}
+
+	public int getOverrideGeneration() {
+		return overrideGeneration;
+	}
+
+	public boolean isManualOverride() {
+		return MANUAL_OVERRIDE;
+	}
+
+	/**
+	 * The line the toggle commands print after the new mode.
+	 */
+	public String toggleExplanation() {
+		if (MANUAL_OVERRIDE) {
+			return "This stays in place until you run /alwaysonline toggle again. The automatic checks will still send alerts when mojang goes down or comes back, but will not change it.";
+		}
+		return "The automatic checks are back in control and will switch offline mode on and off by themselves.";
 	}
 
 	public boolean getOfflineMode() {

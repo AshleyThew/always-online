@@ -10,14 +10,29 @@ public interface Database {
 	UUID getUUID(String username);
 
 	/**
-	 * Caches the information and updates the database.
+	 * @return the skin saved on the player's last normal join, or null if none was saved
+	 */
+	Skin getSkin(String username);
+
+	/**
+	 * Caches the information and updates the database, keeping any skin already saved.
 	 * Highly recommended to run async
 	 *
 	 * @param username The username
 	 * @param ip       The IP
 	 * @param uuid     The UUID
 	 */
-	void updatePlayer(String username, String ip, UUID uuid);
+	default void updatePlayer(String username, String ip, UUID uuid) {
+		this.updatePlayer(username, ip, uuid, null);
+	}
+
+	/**
+	 * Caches the information and updates the database.
+	 * Highly recommended to run async
+	 *
+	 * @param skin the player's current skin, or null to keep whatever is already saved
+	 */
+	void updatePlayer(String username, String ip, UUID uuid, Skin skin);
 
 	/**
 	 * Saves the data.
@@ -35,6 +50,11 @@ public interface Database {
 	 * This method does not save any data
 	 */
 	void close();
+
+	/**
+	 * A short name for /alwaysonline status.
+	 */
+	String describe();
 
 	default boolean isValidIP(String ip) {
 		try {

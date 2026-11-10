@@ -47,7 +47,7 @@ public class AlwaysOnlineServerConnectionListener extends ChannelDuplexHandler {
 			if (fieldConnections != null) {
 				alwaysOnline.getNativeExecutor().log(Level.INFO, "Falling back to direct connection pipeline injection");
 				for (Connection connection : server.getConnection().getConnections()) {
-					attachToPipeline(connection.channel.pipeline());
+					attachToPipeline(connection.channel, ATTACH_ATTEMPTS);
 				}
 				return;
 			}
@@ -109,7 +109,7 @@ public class AlwaysOnlineServerConnectionListener extends ChannelDuplexHandler {
 					((Channel) msg).pipeline().addLast(new ChannelInitializer<Channel>() {
 						@Override
 						protected void initChannel(Channel ch) {
-							attachToPipeline(ch.pipeline());
+							attachToPipeline(ch, ATTACH_ATTEMPTS);
 						}
 					});
 				}
@@ -259,7 +259,15 @@ public class AlwaysOnlineServerConnectionListener extends ChannelDuplexHandler {
 		}
 	}
 
-	private void attachToPipeline(ChannelPipeline pipeline) {
+	// The handler has to sit after the server's packet decoder, just before "packet_handler", or it only ever
+	// sees raw bytes and never the login packet. A new connection can reach us before the server has finished
+	// building its pipeline, and adding ourselves at the end would then put us in front of the decoder, so
+	// wait for "packet_handler" to appear instead.
+	private static final int ATTACH_ATTEMPTS = 200;
+	private static final long ATTACH_RETRY_MILLIS = 5;
+
+	private void attachToPipeline(Channel channel, int attemptsLeft) {
+		ChannelPipeline pipeline = channel.pipeline();
 		if (pipeline.get("ao_handler") != null) {
 			pipeline.remove("ao_handler");
 		}
@@ -267,7 +275,12 @@ public class AlwaysOnlineServerConnectionListener extends ChannelDuplexHandler {
 			pipeline.addBefore("packet_handler", "ao_handler", this);
 			return;
 		}
-		pipeline.addLast("ao_handler", this);
+		if (!channel.isOpen()) return;
+		if (attemptsLeft > 0) {
+			channel.eventLoop().schedule(() -> attachToPipeline(channel, attemptsLeft - 1), ATTACH_RETRY_MILLIS, java.util.concurrent.TimeUnit.MILLISECONDS);
+			return;
+		}
+		alwaysOnline.getNativeExecutor().log(Level.WARNING, "Could not find the packet handler on a new connection, so its UUID may not be restored if mojang is offline");
 	}
 
 	@Override
@@ -283,10 +296,18 @@ public class AlwaysOnlineServerConnectionListener extends ChannelDuplexHandler {
 				if (alwaysOnline.isDebug()) {
 					alwaysOnline.getNativeExecutor().log(Level.INFO, "Player " + serverboundHelloPacket.name() + " updating UUID to " + uuid);
 				}
-				for (Connection connection : ((CraftServer) Bukkit.getServer()).getServer().getConnection().getConnections()) {
-					if (connection.channel == ctx.channel()) {
-						connection.spoofedUUID = uuid;
-						break;
+				// "packet_handler" is the Connection itself. Looking it up in the server's connection list is
+				// not enough: Paper only moves new connections into that list on the next tick, so most logins
+				// were not found there yet and kept their offline UUID.
+				ChannelHandler packetHandler = ctx.pipeline().get("packet_handler");
+				if (packetHandler instanceof Connection) {
+					((Connection) packetHandler).spoofedUUID = uuid;
+				} else {
+					for (Connection connection : ((CraftServer) Bukkit.getServer()).getServer().getConnection().getConnections()) {
+						if (connection.channel == ctx.channel()) {
+							connection.spoofedUUID = uuid;
+							break;
+						}
 					}
 				}
 
