@@ -42,7 +42,7 @@ public class AlwaysOnlineConfig {
 
 	public static final class Checks {
 
-		@ConfigComment({"Session server check, using the status information located at https://sessionserver.mojang.com/", "When every enabled check reports the session servers as down, the plugin goes into mojang offline mode."})
+		@ConfigComment({"Session server check. Asks https://sessionserver.mojang.com/ the same login question your server asks when a player joins.", "An error, a rate limit or no answer within 15 seconds counts as down, and the plugin goes into mojang offline mode.", "This is the only check, so it stays on even if set to false."})
 		public boolean httpHeadSessionServer = true;
 
 		@ConfigComment({"The lockout duration in minutes when the down detector triggers.", "If the server is detected as down again during this period, the lockout timer resets."})

@@ -13,6 +13,10 @@ The plugin continuously monitors Mojang's session servers with a configurable de
 - **Allows returning players** to login if their IP address matches their last authenticated session
 - **Blocks new players** from joining during Mojang outages for security
 - **Automatically switches back** to normal authentication when Mojang servers come back online
+- **Leaves Bedrock players alone**: players joining through Geyser/Floodgate sign in with Xbox, not Mojang, so an outage does not affect them
+- **Keeps skins**: each player's skin is saved on their normal joins and given back when they are let in during an outage, so they don't turn into a default skin
+
+The check asks Mojang's session server the same question your server asks when a player logs in, so it notices outages where logins fail but other Mojang services still answer. A check that gets an error, a rate limit or no answer within 15 seconds counts as down.
 
 ## Compatibility
 
@@ -84,7 +88,9 @@ storage:
 **Requirements:**
 
 - MySQL/MariaDB server
-- Database and user with appropriate permissions
+- Database and user with appropriate permissions (including `ALTER`, so tables made by versions before 6.5.0 can have their `ip` column widened to fit IPv6 addresses)
+
+If AlwaysOnline cannot connect to the database at startup it falls back to the local file, and says so loudly in the console: players saved in MySQL are not known to it until the connection is fixed.
 
 ### MongoDB Storage
 
@@ -189,7 +195,7 @@ To use AlwaysOnline with Sponge servers:
 3. Edit the configuration file with your preferred storage settings
 4. Restart your Sponge server to apply the changes
 
-The plugin will now protect your Sponge server during Mojang outages.
+The plugin will now protect your Sponge server during Mojang outages, with the same checks as the other platforms: returning players are let in from the address they last used, with their own UUID and skin.
 
 ## Advanced Configuration
 
@@ -200,7 +206,7 @@ The plugin will now protect your Sponge server during Mojang outages.
 check-interval: 60
 
 checks:
-  # Session server check, via https://sessionserver.mojang.com/
+  # Session server check, via https://sessionserver.mojang.com/ (the login check itself)
   http-head-session-server: true
   # How long to stay in offline mode after an outage is detected, in minutes.
   # Detecting the servers as down again during this period resets the timer.
@@ -211,6 +217,14 @@ messages:
   mojang-offline: '&5[&2AlwaysOnline&5]&a Mojang servers are now offline!'
   mojang-online: '&5[&2AlwaysOnline&5]&a Mojang servers are now online!'
 ```
+
+### Switching Offline Mode by Hand
+
+`/alwaysonline toggle` switches offline mode and **holds it there**. The automatic checks stop changing it until you run `/alwaysonline toggle` again, which flips it back and hands control back to the checks. While it is held, the checks still send the status notifications below when Mojang goes down or comes back, so you know when to switch back. The hold survives restarts.
+
+`/alwaysonline status` shows where things stand: whether offline mode is on and whether it was set by hand, whether the automatic checks are on, what the last check found and when, and which database is in use.
+
+`/alwaysonline disable` switches the automatic checks off and is also remembered across restarts. While they are off, outages are not noticed, so the console warns about it on every startup. `/alwaysonline enable` turns them back on.
 
 ### Kick Messages
 

@@ -3,6 +3,7 @@ package me.dablakbandit.ao.sponge;
 import me.dablakbandit.ao.hybrid.AlwaysOnline;
 import me.dablakbandit.ao.utils.UUIDUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.spongepowered.api.command.Command;
@@ -23,7 +24,7 @@ public class SpongeCommand implements CommandExecutor {
 		this.loader = loader;
 	}
 
-	Parameter.Value<String> action = Parameter.choices("toggle", "enable", "disable", "reload", "debug", "resetcache", "updateip").key("action").optional().build();
+	Parameter.Value<String> action = Parameter.choices("toggle", "enable", "disable", "reload", "status", "debug", "resetcache", "updateip").key("action").optional().build();
 	Parameter.Value<String> username = Parameter.string().key("username").optional().build();
 	Parameter.Value<String> ip = Parameter.string().key("ip").optional().build();
 	Parameter.Value<String> uuid = Parameter.string().key("uuid").optional().build();
@@ -52,11 +53,12 @@ public class SpongeCommand implements CommandExecutor {
 				} else {
 					context.cause().audience().sendMessage(Component.text("AlwaysOnline will no longer treat the mojang servers as being online.").color(NamedTextColor.GOLD));
 				}
+				context.cause().audience().sendMessage(Component.text(alwaysOnline.toggleExplanation()).color(NamedTextColor.GRAY));
 				break;
 
 			case "disable":
 				alwaysOnline.setCheckSessionStatus(false);
-				context.cause().audience().sendMessage(Component.text("AlwaysOnline has been disabled! AlwaysOnline will no longer check to see if the session server is offline.").color(NamedTextColor.GOLD));
+				context.cause().audience().sendMessage(Component.text("AlwaysOnline has been disabled! AlwaysOnline will no longer check to see if the session server is offline. This is remembered across restarts.").color(NamedTextColor.GOLD));
 				break;
 
 			case "enable":
@@ -67,6 +69,10 @@ public class SpongeCommand implements CommandExecutor {
 			case "reload":
 				alwaysOnline.reload();
 				context.cause().audience().sendMessage(Component.text("AlwaysOnline has been reloaded!").color(NamedTextColor.GOLD));
+				break;
+
+			case "status":
+				for (String line : alwaysOnline.statusLines()) context.cause().audience().sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(line));
 				break;
 
 			case "debug":
@@ -131,7 +137,7 @@ public class SpongeCommand implements CommandExecutor {
 
 		audience.sendMessage(divider.append(Component.text("[").color(NamedTextColor.GOLD)).append(Component.text("AlwaysOnline").color(NamedTextColor.DARK_GREEN)).append(Component.text(" ").color(NamedTextColor.GOLD)).append(Component.text(loader.getVersion()).color(NamedTextColor.GRAY)).append(Component.text("]").color(NamedTextColor.GOLD)).append(divider));
 
-		audience.sendMessage(Component.text("/alwaysonline toggle - ").color(NamedTextColor.GOLD).append(Component.text("Toggles between mojang online mode").color(NamedTextColor.DARK_GREEN)));
+		audience.sendMessage(Component.text("/alwaysonline toggle - ").color(NamedTextColor.GOLD).append(Component.text("Switches mojang offline mode by hand, until toggled again").color(NamedTextColor.DARK_GREEN)));
 
 		audience.sendMessage(Component.text("/alwaysonline enable - ").color(NamedTextColor.GOLD).append(Component.text("Enables the plugin").color(NamedTextColor.DARK_GREEN)));
 
@@ -139,6 +145,7 @@ public class SpongeCommand implements CommandExecutor {
 
 		audience.sendMessage(Component.text("/alwaysonline reload - ").color(NamedTextColor.GOLD).append(Component.text("Reloads the configuration file").color(NamedTextColor.DARK_GREEN)));
 
+		audience.sendMessage(Component.text("/alwaysonline status - ").color(NamedTextColor.GOLD).append(Component.text("Show the current mode, last check and database").color(NamedTextColor.DARK_GREEN)));
 		audience.sendMessage(Component.text("/alwaysonline resetcache - ").color(NamedTextColor.GOLD).append(Component.text("Clear database cache").color(NamedTextColor.DARK_GREEN)));
 
 		audience.sendMessage(Component.text("/alwaysonline updateip <username> <ip> [uuid] - ").color(NamedTextColor.GOLD).append(Component.text("Update a users ip in the database").color(NamedTextColor.DARK_GREEN)));

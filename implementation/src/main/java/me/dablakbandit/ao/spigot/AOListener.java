@@ -1,7 +1,9 @@
 package me.dablakbandit.ao.spigot;
 
 import me.dablakbandit.ao.config.AlwaysOnlineConfig;
+import me.dablakbandit.ao.databases.Skin;
 import me.dablakbandit.ao.utils.Placeholders;
+import me.dablakbandit.ao.utils.UUIDUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -38,6 +40,10 @@ public class AOListener implements Listener {
 		if (spigotLoader.getAOInstance().getOfflineMode()) {
 			String username = event.getName();
 			String ip = event.getAddress().getHostAddress();
+			// Floodgate (Bedrock) players sign in through Xbox, not mojang, so the outage does not affect them.
+			if (UUIDUtil.isFloodgateId(event.getUniqueId())) {
+				return;
+			}
 			if (!this.validate(username)) {
 				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickInvalid, username, ip, null));
 				return;
@@ -50,6 +56,15 @@ public class AOListener implements Listener {
 					event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, this.kickMessage(this.spigotLoader.alwaysOnline.config.messages.kickIp, username, ip, lastIP));
 				} else {
 					this.spigotLoader.log(Level.INFO, username + " was successfully authenticated while mojang servers were offline. Connecting IP is " + ip + " and the last authenticated known IP was " + lastIP);
+					// Make sure they log in as themselves, not as a fresh offline-mode player with an empty
+					// inventory (the network hook usually has done this already, but it can miss a connection),
+					// and with the skin saved on their last normal join instead of none.
+					UUID stored = this.spigotLoader.alwaysOnline.database.getUUID(username);
+					UUID newId = stored != null && !stored.equals(event.getUniqueId()) ? stored : null;
+					Skin skin = this.spigotLoader.alwaysOnline.database.getSkin(username);
+					if (PaperProfiles.apply(event, newId, skin) && this.spigotLoader.alwaysOnline.isDebug()) {
+						this.spigotLoader.log(Level.INFO, "Restored the login profile for " + username + (newId != null ? ": UUID " + newId + " (was " + event.getUniqueId() + ")" : "") + (skin != null ? ", with saved skin" : ""));
+					}
 				}
 			}
 		}
@@ -61,10 +76,11 @@ public class AOListener implements Listener {
 			final String username = event.getPlayer().getName();
 			final String ip = event.getPlayer().getAddress().getAddress().getHostAddress();
 			final UUID uuid = event.getPlayer().getUniqueId();
+			final Skin skin = PaperProfiles.skinOf(event.getPlayer());
 			this.spigotLoader.getServer().getScheduler().runTaskAsynchronously(this.spigotLoader, new Runnable() {
 				@Override
 				public void run() {
-					AOListener.this.spigotLoader.alwaysOnline.database.updatePlayer(username, ip, uuid);
+					AOListener.this.spigotLoader.alwaysOnline.database.updatePlayer(username, ip, uuid, skin);
 				}
 			});
 		}

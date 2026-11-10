@@ -48,13 +48,6 @@ public class SpongeLoader implements NativeExecutor {
 	@Listener
 	public void onServerStart(StartedEngineEvent<Server> event) {
 		this.alwaysOnline.reload();
-
-		try {
-			SpongeSessionInjector.getInstance().injectSessionService(alwaysOnline, Sponge.server());
-		} catch (Exception e) {
-			log(Level.SEVERE, "Failed to inject session service!");
-			e.printStackTrace();
-		}
 	}
 
 	@Listener
@@ -137,7 +130,11 @@ public class SpongeLoader implements NativeExecutor {
 
 	@Override
 	public void notifyOfflineMode(boolean offlineMode) {
-		SpongeSessionInjector.getInstance().setOfflineMode(offlineMode);
+		try {
+			SpongeSessionInjector.getInstance().setOfflineMode(offlineMode);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			log(Level.SEVERE, "Could not switch the server's mojang login " + (offlineMode ? "off" : "back on") + " (" + e + "). Offline mode will not let anyone in.");
+		}
 	}
 
 	@Override

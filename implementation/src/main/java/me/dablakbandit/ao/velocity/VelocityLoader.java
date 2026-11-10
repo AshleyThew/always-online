@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -92,15 +91,14 @@ public class VelocityLoader implements NativeExecutor {
 	}
 
 	private final AtomicInteger taskCounter = new AtomicInteger(0);
-	private final Map<Integer, ScheduledTask> scheduledTasks = new HashMap<>();
+	private final Map<Integer, ScheduledTask> scheduledTasks = new java.util.concurrent.ConcurrentHashMap<>();
 
 	@Override
 	public Object runAsyncRepeating(Runnable runnable, long delay, long period, TimeUnit timeUnit) {
 		int taskId = taskCounter.getAndIncrement();
-		ScheduledTask task = server.getScheduler().buildTask(this, () -> {
-			scheduledTasks.remove(taskId);
-			runnable.run();
-		}).delay(delay, timeUnit).repeat(period, timeUnit).schedule();
+		// The task stays in the map for as long as it repeats. Removing it on its first run (as this used to)
+		// meant cancelAllOurTasks could never stop it, so every /alwaysonline reload left another check running.
+		ScheduledTask task = server.getScheduler().buildTask(this, runnable).delay(delay, timeUnit).repeat(period, timeUnit).schedule();
 		scheduledTasks.put(taskId, task);
 		return taskId;
 	}

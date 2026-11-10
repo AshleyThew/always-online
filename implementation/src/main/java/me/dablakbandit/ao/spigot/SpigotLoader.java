@@ -80,10 +80,11 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 					} else {
 						sender.sendMessage(ChatColor.GOLD + pluginName + " will no longer treat the mojang servers as being online.");
 					}
+					sender.sendMessage(ChatColor.GRAY + alwaysOnline.toggleExplanation());
 					break;
 				case "disable":
 					alwaysOnline.setCheckSessionStatus(false);
-					sender.sendMessage(ChatColor.GOLD + pluginName + " has been disabled! " + pluginName + " will no longer check to see if the session server is offline.");
+					sender.sendMessage(ChatColor.GOLD + pluginName + " has been disabled! " + pluginName + " will no longer check to see if the session server is offline. This is remembered across restarts.");
 					break;
 				case "enable":
 					alwaysOnline.setCheckSessionStatus(true);
@@ -92,6 +93,9 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 				case "reload":
 					// TODO Add support?
 					sender.sendMessage(ChatColor.RED + "The reload command is not supported when running " + pluginName + " with spigot.");
+					break;
+				case "status":
+					for (String line : alwaysOnline.statusLines()) sender.sendMessage(ChatColor.translateAlternateColorCodes('&', line));
 					break;
 				case "debug":
 					if (sender instanceof Player)
@@ -149,10 +153,11 @@ public class SpigotLoader extends JavaPlugin implements NativeExecutor {
 
 	private void displayHelp(CommandSender sender) {
 		sender.sendMessage(ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------" + ChatColor.GOLD + "[" + ChatColor.DARK_GREEN + "AlwaysOnline " + ChatColor.GRAY + this.getDescription().getVersion() + ChatColor.GOLD + "]" + ChatColor.GOLD + ChatColor.STRIKETHROUGH + "----------");
-		sender.sendMessage(ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN + "Toggles between mojang online mode");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN + "Switches mojang offline mode by hand, until toggled again");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline enable - " + ChatColor.DARK_GREEN + "Enables the plugin");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline disable - " + ChatColor.DARK_GREEN + "Disables the plugin");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline reload - " + ChatColor.DARK_GREEN + "Reloads the configuration file");
+		sender.sendMessage(ChatColor.GOLD + "/alwaysonline status - " + ChatColor.DARK_GREEN + "Show the current mode, last check and database");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline resetcache - " + ChatColor.DARK_GREEN + "Clear database cache");
 		sender.sendMessage(ChatColor.GOLD + "/alwaysonline updateip <username> <ip> [uuid] - " + ChatColor.DARK_GREEN + "Update a users ip in the database");
 		sender.sendMessage(ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "------------------------------");

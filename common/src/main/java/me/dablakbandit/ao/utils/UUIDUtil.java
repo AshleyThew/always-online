@@ -18,4 +18,13 @@ public class UUIDUtil {
 			return false;
 		}
 	}
+
+	/**
+	 * Floodgate (Geyser) gives Bedrock players a UUID built from their Xbox id, with the upper 64 bits all
+	 * zero. A Mojang UUID is random (version 4), so it never looks like this. Bedrock players sign in through
+	 * Xbox, not Mojang, so a mojang outage does not affect them and AlwaysOnline must leave them alone.
+	 */
+	public static boolean isFloodgateId(UUID uuid) {
+		return uuid != null && uuid.getMostSignificantBits() == 0;
+	}
 }

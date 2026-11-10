@@ -41,10 +41,11 @@ public class VelocityCommand implements SimpleCommand {
 					} else {
 						sendMessage(sender, ChatColor.GOLD + "AlwaysOnline will no longer treat the mojang servers as being online.");
 					}
+					sendMessage(sender, ChatColor.GRAY + alwaysOnline.toggleExplanation());
 					break;
 				case "disable":
 					alwaysOnline.setCheckSessionStatus(false);
-					sendMessage(sender, ChatColor.GOLD + "AlwaysOnline has been disabled! AlwaysOnline will no longer check to see if the session server is offline.");
+					sendMessage(sender, ChatColor.GOLD + "AlwaysOnline has been disabled! AlwaysOnline will no longer check to see if the session server is offline. This is remembered across restarts.");
 					break;
 				case "enable":
 					alwaysOnline.setCheckSessionStatus(true);
@@ -53,6 +54,9 @@ public class VelocityCommand implements SimpleCommand {
 				case "reload":
 					this.ao.alwaysOnline.reload();
 					sendMessage(sender, ChatColor.GOLD + "AlwaysOnline has been reloaded!");
+					break;
+				case "status":
+					for (String line : alwaysOnline.statusLines()) sendMessage(sender, line);
 					break;
 				case "debug":
 					this.ao.alwaysOnline.printDebugInformation();
@@ -109,10 +113,11 @@ public class VelocityCommand implements SimpleCommand {
 	private void displayHelp(CommandSource source) {
 
 		sendMessage(source, ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "----------" + ChatColor.GOLD + "[" + ChatColor.DARK_GREEN + "AlwaysOnline " + ChatColor.GRAY + ao.getVersion() + ChatColor.GOLD + "]" + ChatColor.GOLD + ChatColor.STRIKETHROUGH + "----------");
-		sendMessage(source, ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN + "Toggles between mojang online mode");
+		sendMessage(source, ChatColor.GOLD + "/alwaysonline toggle - " + ChatColor.DARK_GREEN + "Switches mojang offline mode by hand, until toggled again");
 		sendMessage(source, ChatColor.GOLD + "/alwaysonline enable - " + ChatColor.DARK_GREEN + "Enables the plugin");
 		sendMessage(source, ChatColor.GOLD + "/alwaysonline disable - " + ChatColor.DARK_GREEN + "Disables the plugin");
 		sendMessage(source, ChatColor.GOLD + "/alwaysonline reload - " + ChatColor.DARK_GREEN + "Reloads the configuration file");
+		sendMessage(source, ChatColor.GOLD + "/alwaysonline status - " + ChatColor.DARK_GREEN + "Show the current mode, last check and database");
 		sendMessage(source, ChatColor.GOLD + "/alwaysonline resetcache - " + ChatColor.DARK_GREEN + "Clear database cache");
 		sendMessage(source, ChatColor.GOLD + "/alwaysonline updateip <username> <ip> [uuid] - " + ChatColor.DARK_GREEN + "Update a users ip in the database");
 		sendMessage(source, ChatColor.GOLD + "" + ChatColor.STRIKETHROUGH + "------------------------------");

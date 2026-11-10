@@ -38,7 +38,12 @@ public class UpdateChecker {
 			URL checkURL = new URL("https://api.spigotmc.org/legacy/update.php?resource=66591");
 			URLConnection con = checkURL.openConnection();
 			con.setConnectTimeout(2000);
-			String new_version = new BufferedReader(new InputStreamReader(con.getInputStream())).readLine();
+			// Without a read timeout a SpigotMC response that never arrives holds a scheduler thread forever.
+			con.setReadTimeout(5000);
+			String new_version;
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+				new_version = reader.readLine();
+			}
 			int new_version_number = Integer.parseInt(new_version.replaceAll("[^0-9]", ""));
 			if (new_version_number > latestVersion) {
 				latest = new_version;
